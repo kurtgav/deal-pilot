@@ -6,7 +6,7 @@ export default function LeadScoreGauge({ score }: { score: number }) {
   const label = score >= 80 ? 'SQL' : score >= 60 ? 'MQL' : score >= 40 ? 'Review' : 'Gathering...';
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="relative w-[160px] h-[160px]">
       <svg width="160" height="160" className="-rotate-90">
         <circle cx="80" cy="80" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
         <circle
@@ -17,7 +17,7 @@ export default function LeadScoreGauge({ score }: { score: number }) {
           className="transition-all duration-700 ease-out"
         />
       </svg>
-      <div className="absolute flex flex-col items-center justify-center" style={{ marginTop: '40px' }}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-3xl font-bold">{score}</span>
         <span className="text-xs text-[var(--color-muted)] mt-1">{label}</span>
       </div>
