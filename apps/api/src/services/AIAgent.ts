@@ -6,7 +6,11 @@ const NIM_MODEL = process.env.NIM_MODEL || 'meta/llama-3.3-70b-instruct';
 
 export async function callLLM(system: string, user: string): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
-  if (!apiKey) throw new Error('NVIDIA_NIM_API_KEY not set');
+  if (!apiKey) {
+    throw new Error(
+      'NVIDIA_NIM_API_KEY is missing. Add it to apps/api/.env or root .env, then restart the dev server.'
+    );
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
@@ -38,22 +42,22 @@ export async function callLLM(system: string, user: string): Promise<string> {
 
 const SYSTEM_PROMPT = `You are DealPilot AI, an AI Sales Engineer on a live voice discovery call. You are professional, concise, and technically knowledgeable.
 
-GOLDEN RULES (non-negotiable):
-1. NEVER fabricate product information. Only answer from the PRODUCT KNOWLEDGE provided below.
-2. NEVER deny being an AI if asked directly.
-3. NEVER make binding commitments on pricing, contracts, SLAs, or delivery dates.
-4. If a question is outside your knowledge, say: "That's a great question — I'll flag this for our solutions team to follow up on."
-5. Keep responses to 1-3 sentences. This is voice, not text.
-6. Be conversational. No bullet points, no numbered lists, no markdown.
+You work for DealPilot — a real-time voice AI sales engineering platform for B2B SaaS companies.
 
-PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respects people's time.
+PRODUCT KNOWLEDGE:
+- Starter Plan ($499/mo): 50 AI calls/month, basic scoring, CRM export
+- Professional Plan ($1,499/mo): Unlimited calls, advanced scoring, real-time copilot, Slack/CRM integrations
+- Enterprise Plan (Custom): Everything + SOC 2, SSO, dedicated infrastructure, 99.9% SLA
 
-CALL STRUCTURE:
-- Start with discovery questions to understand needs
-- Answer product/technical questions from knowledge base
-- Handle objections calmly with trained rebuttals
-- When enough info gathered, recommend a package
-- Close with a next-step question`;
+RULES:
+1. Keep responses SHORT — 1-3 sentences max. This is voice, not text.
+2. Be conversational and natural. No bullet points or lists in speech.
+3. If asked something you don't know, say "I'll flag that for our team to follow up on."
+4. Never deny being an AI.
+5. Never make binding pricing or contract commitments.
+6. Ask discovery questions to understand the prospect's needs.
+
+PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respects people's time.`;
 
 export async function generateAgentResponse(
   session: CallSession,
@@ -63,28 +67,11 @@ export async function generateAgentResponse(
   const stage = determineStage(session.extractedFields, session.transcript);
   const history = session.transcript.slice(-8).map(l => `${l.speaker}: ${l.text}`).join('\n');
 
-  // RAG: retrieve relevant product info based on prospect's latest input
-  const productContext = retrieveProductInfo(latestInput);
-  const objectionRebuttal = retrieveObjectionRebuttal(latestInput);
-  const discoveryQs = getDiscoveryQuestions(stage);
-
-  let ragContext = `\nPRODUCT KNOWLEDGE:\n${productContext}`;
-  if (objectionRebuttal) {
-    ragContext += `\n\nOBJECTION DETECTED — SUGGESTED REBUTTAL:\n${objectionRebuttal}`;
-  }
-  if (discoveryQs.length > 0 && stage !== 'close') {
-    ragContext += `\n\nSUGGESTED DISCOVERY QUESTIONS FOR THIS STAGE (${stage}):\n${discoveryQs.join('\n')}`;
-  }
-
-  const userPrompt = `LEAD CONTEXT:
-- Name: ${lead.contactName}
-- Company: ${lead.company}
-- Industry: ${lead.industry}
-- Initial Interest: ${lead.initialUseCase}
+  const context = `You are on a call with ${lead.contactName} from ${lead.company} (${lead.industry}).
+Their initial interest: ${lead.initialUseCase}
 
 CURRENT CALL STAGE: ${stage}
 EXTRACTED SO FAR: ${JSON.stringify(session.extractedFields, null, 0)}
-${ragContext}
 
 CONVERSATION:
 ${history}
@@ -93,7 +80,7 @@ PROSPECT just said: "${latestInput}"
 
 Respond naturally as DealPilot AI. 1-3 sentences max.`;
 
-  const text = await callLLM(SYSTEM_PROMPT, userPrompt);
+  const text = await callLLM(SYSTEM_PROMPT, context);
   return { text, stage };
 }
 

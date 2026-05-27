@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { CallSession, Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 import { useSocket } from '../hooks/useSocket';
@@ -39,8 +39,6 @@ export default function CallRoom() {
   useEffect(() => { reset(); }, [sessionId]);
 
   // ------- Closed-loop transcript dispatcher -------
-  // When useSpeech flushes a buffered turn, send it. If AI is muted, no TTS will
-  // fire to bring the mic back, so schedule a resume ourselves.
   const handleProspectTurn = (text: string) => {
     sendTranscript(text);
     if (convoActiveRef.current && mutedRef.current) {
@@ -48,7 +46,7 @@ export default function CallRoom() {
     }
   };
 
-  // TTS + STT
+  // TTS + STT — fil-PH lang enables Filipino + Taglish recognition.
   const {
     listening,
     speaking,
@@ -59,8 +57,9 @@ export default function CallRoom() {
     stopSpeaking,
   } = useSpeech({
     onTranscript: handleProspectTurn,
+    lang: 'fil-PH',
     rate: speechRate,
-    mode: 'continuous', // closed-loop: one mic-stop = one turn
+    mode: 'continuous',
   });
 
   // Socket: agent:response → speak (loop closes via the speaking-end useEffect)
@@ -80,7 +79,6 @@ export default function CallRoom() {
     clearResumeTimer();
     resumeTimerRef.current = setTimeout(() => {
       resumeTimerRef.current = null;
-      // Only resume if the loop is still active and nothing else is going on.
       if (convoActiveRef.current && !speaking && !listening) {
         startListening();
       }
@@ -120,8 +118,6 @@ export default function CallRoom() {
   const startConversation = () => {
     setConvoActive(true);
     convoActiveRef.current = true;
-    // If AI happens to be speaking (e.g., greeting on session join), the
-    // speaking-end effect will start the mic when it finishes.
     if (!speaking && !listening) {
       startListening();
     }
@@ -174,9 +170,13 @@ export default function CallRoom() {
       <header className="bg-white border-b border-[var(--color-border)] px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
+            <Link
+              to="/"
+              aria-label="Go to landing page"
+              className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center"
+            >
               <span className="text-white text-sm font-bold">D</span>
-            </div>
+            </Link>
             <div>
               <h1 className="text-base font-semibold">{lead?.contactName || 'Loading...'}</h1>
               <p className="text-xs text-[var(--color-muted)]">{lead?.company} · {lead?.industry}</p>
@@ -268,7 +268,7 @@ export default function CallRoom() {
                       key={r}
                       onClick={() => setSpeechRate(r)}
                       aria-pressed={active}
-                      title={`AI speaks at ${label}${speaking ? ' (restarts current line)' : ''}`}
+                      title={`AI speaks at ${label}`}
                       className={`px-2.5 py-2 text-xs font-semibold transition-colors ${
                         active
                           ? 'bg-[var(--color-accent)] text-white'

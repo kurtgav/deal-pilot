@@ -9,7 +9,7 @@ export function useSocket(sessionId: string, onAgentResponse?: (text: string) =>
   const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket'], path: '/socket.io' });
+    const socket = io({ transports: ['websocket'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {

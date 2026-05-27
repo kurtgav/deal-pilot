@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { Handoff as HandoffType, CallSession, Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 import HandoffExport from '../components/HandoffExport';
@@ -55,9 +55,9 @@ export default function Handoff() {
       <header className="bg-white border-b border-[var(--color-border)] px-8 py-5">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
+            <Link to="/" aria-label="Go to landing page" className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
               <span className="text-white text-sm font-bold">D</span>
-            </div>
+            </Link>
             <div>
               <h1 className="text-lg font-semibold">Post-Call Handoff</h1>
               {lead && <p className="text-xs text-[var(--color-muted)]">{lead.contactName} · {lead.company}</p>}
