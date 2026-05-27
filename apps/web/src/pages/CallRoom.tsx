@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { CallSession, Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 import { useSocket } from '../hooks/useSocket';
@@ -69,9 +69,9 @@ export default function CallRoom() {
       <header className="bg-white border-b border-[var(--color-border)] px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
+            <Link to="/" aria-label="Go to landing page" className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
               <span className="text-white text-sm font-bold">D</span>
-            </div>
+            </Link>
             <div>
               <h1 className="text-base font-semibold">{lead?.contactName || 'Loading...'}</h1>
               <p className="text-xs text-[var(--color-muted)]">{lead?.company} · {lead?.industry}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 
@@ -230,13 +230,13 @@ function Sidebar({ active, onNavigate }: { active: Screen; onNavigate: (screen: 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[var(--color-border)] bg-white lg:flex">
       <div className="border-b border-[var(--color-border)] p-6">
-        <div className="flex items-center gap-3">
+        <Link to="/" aria-label="Go to landing page" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-accent)] text-sm font-bold text-white">DP</div>
           <div>
             <h1 className="text-lg font-semibold">DealPilot AI</h1>
             <p className="text-xs text-[var(--color-muted)]">Voice Sales Engineer</p>
           </div>
-        </div>
+        </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {items.map((item) => (

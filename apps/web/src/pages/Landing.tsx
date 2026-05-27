@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -8,12 +8,12 @@ export default function Landing() {
       {/* Nav */}
       <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-[var(--color-border)] z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" aria-label="Go to landing page" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
               <span className="text-white text-sm font-bold">D</span>
             </div>
             <span className="text-lg font-semibold tracking-tight">DealPilot AI</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors">Features</a>
             <a href="#how-it-works" className="text-sm text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors">How It Works</a>
@@ -193,12 +193,12 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-[var(--color-border)] py-10 px-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" aria-label="Go to landing page" className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-md bg-[var(--color-accent)] flex items-center justify-center">
               <span className="text-white text-xs font-bold">D</span>
             </div>
             <span className="text-sm font-medium">DealPilot AI</span>
-          </div>
+          </Link>
           <p className="text-xs text-[var(--color-muted)]">© 2026 DealPilot AI. Built for the future of B2B sales.</p>
         </div>
       </footer>
