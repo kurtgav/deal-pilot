@@ -2,15 +2,25 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../store/sessionStore';
 
+const SOCKET_URL = import.meta.env.VITE_API_URL || '';
+
 export function useSocket(sessionId: string, onAgentResponse?: (text: string) => void) {
   const socketRef = useRef<Socket | null>(null);
   const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
 
   useEffect(() => {
-    const socket = io({ transports: ['websocket'] });
+    const socket = io(SOCKET_URL, { transports: ['websocket'], path: '/socket.io' });
     socketRef.current = socket;
 
-    socket.on('connect', () => socket.emit('session:join', { sessionId }));
+    socket.on('connect', () => {
+      console.log('[Socket] Connected:', socket.id);
+      socket.emit('session:join', { sessionId });
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Socket] Connection error:', err.message);
+    });
+
     socket.on('transcript:update', addTranscriptLine);
     socket.on('fields:update', updateFields);
     socket.on('score:update', ({ score }) => setScore(score));
