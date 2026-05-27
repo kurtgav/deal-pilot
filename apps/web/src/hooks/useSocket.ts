@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSessionStore } from '../store/sessionStore';
 
-export function useSocket(sessionId: string) {
+export function useSocket(sessionId: string, onAgentResponse?: (text: string) => void) {
   const socketRef = useRef<Socket | null>(null);
   const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
 
@@ -14,6 +14,9 @@ export function useSocket(sessionId: string) {
     socket.on('transcript:update', addTranscriptLine);
     socket.on('fields:update', updateFields);
     socket.on('score:update', ({ score }) => setScore(score));
+    socket.on('agent:response', ({ text }) => {
+      onAgentResponse?.(text);
+    });
 
     return () => { socket.disconnect(); };
   }, [sessionId]);

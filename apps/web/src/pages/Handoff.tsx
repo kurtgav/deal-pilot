@@ -34,7 +34,7 @@ export default function Handoff() {
             </div>
             <h1 className="text-xl font-semibold">Post-Call Handoff</h1>
           </div>
-          <button onClick={() => navigate('/')} className="text-sm text-[var(--color-accent)] hover:underline">
+          <button onClick={() => navigate('/app')} className="text-sm text-[var(--color-accent)] hover:underline">
             ← Back to Dashboard
           </button>
         </div>

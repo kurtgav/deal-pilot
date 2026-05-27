@@ -16,9 +16,22 @@ export function initSocketServer(httpServer: HttpServer) {
   io.on('connection', (socket) => {
     let currentSessionId: string | null = null;
 
-    socket.on('session:join', ({ sessionId }) => {
+    socket.on('session:join', async ({ sessionId }) => {
       currentSessionId = sessionId;
       socket.join(sessionId);
+
+      // Auto-intro: AI introduces itself when session starts
+      const session = db.sessions.find((s) => s.id === sessionId);
+      if (session && session.status === 'active' && session.transcript.length === 0) {
+        const lead = db.leads.find((l) => l.id === session.leadId);
+        if (lead) {
+          const introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer for today's call. I'm here to understand your needs and see how we can help. To get started, could you tell me a bit about what your team is working on and what brought you to us today?`;
+          const aiLine: TranscriptLine = { speaker: 'AI', text: introText, timestamp: new Date().toISOString() };
+          session.transcript.push(aiLine);
+          io.to(sessionId).emit('transcript:update', aiLine);
+          io.to(sessionId).emit('agent:response', { text: introText });
+        }
+      }
     });
 
     socket.on('voice:transcript', async ({ text, speaker }) => {
@@ -59,11 +72,17 @@ export function initSocketServer(httpServer: HttpServer) {
         const lead = db.leads.find((l) => l.id === session.leadId);
         if (!lead) return;
 
-        const { text: responseText } = await generateAgentResponse(session, lead, text);
-        const aiLine: TranscriptLine = { speaker: 'AI', text: responseText, timestamp: new Date().toISOString() };
-        session.transcript.push(aiLine);
-        io.to(currentSessionId).emit('transcript:update', aiLine);
-        io.to(currentSessionId).emit('agent:response', { text: responseText });
+        try {
+          const { text: responseText } = await generateAgentResponse(session, lead, text);
+          const aiLine: TranscriptLine = { speaker: 'AI', text: responseText, timestamp: new Date().toISOString() };
+          session.transcript.push(aiLine);
+          io.to(currentSessionId).emit('transcript:update', aiLine);
+          io.to(currentSessionId).emit('agent:response', { text: responseText });
+        } catch (err: any) {
+          console.error('[AI] Error:', err.message);
+          const errorLine: TranscriptLine = { speaker: 'AI', text: `[Error: ${err.message}]`, timestamp: new Date().toISOString() };
+          io.to(currentSessionId).emit('transcript:update', errorLine);
+        }
       }
     });
 

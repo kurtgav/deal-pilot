@@ -27,4 +27,11 @@ import { seedDatabase } from './db/seedData.js';
 seedDatabase();
 
 const PORT = process.env.PORT || 3001;
+httpServer.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is in use. Run: lsof -ti:${PORT} | xargs kill -9`);
+    process.exit(1);
+  }
+  throw err;
+});
 httpServer.listen(PORT, () => console.log(`DealPilot API running on :${PORT}`));

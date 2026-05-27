@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import type { CallSession, Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 import { useSocket } from '../hooks/useSocket';
-import { useVoice } from '../hooks/useVoice';
+import { useSpeech } from '../hooks/useSpeech';
 import { useSessionStore } from '../store/sessionStore';
 import Transcript from '../components/Transcript';
 import CopilotPanel from '../components/CopilotPanel';
-import VoiceControls from '../components/VoiceControls';
 import LeadScoreGauge from '../components/LeadScoreGauge';
 
 export default function CallRoom() {
@@ -15,15 +14,21 @@ export default function CallRoom() {
   const navigate = useNavigate();
   const [lead, setLead] = useState<Lead | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const { transcript, fields, score, muted } = useSessionStore();
-  const { sendTranscript, muteAgent, unmuteAgent } = useSocket(sessionId!);
+  const [input, setInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const { transcript, fields, score, muted, reset } = useSessionStore();
 
-  // Agora voice - channel name is the sessionId
-  const { join, leave, joined, micMuted, toggleMic } = useVoice({
-    channel: sessionId!,
-    uid: 0,
-    onRemoteUserJoined: (uid) => console.log('[Agora] Remote user joined:', uid),
-    onRemoteUserLeft: (uid) => console.log('[Agora] Remote user left:', uid),
+  // Reset store when entering a new session
+  useEffect(() => { reset(); }, [sessionId]);
+
+  // TTS: speak AI responses aloud
+  const { listening, speaking, interim, startListening, stopListening, speak, stopSpeaking } = useSpeech({
+    onTranscript: (text) => sendTranscript(text),
+  });
+
+  // Socket: wire agent:response → speak
+  const { sendTranscript, muteAgent, unmuteAgent } = useSocket(sessionId!, (aiText) => {
+    speak(aiText);
   });
 
   useEffect(() => {
@@ -31,9 +36,6 @@ export default function CallRoom() {
     api.getSession(sessionId).then((s: CallSession) => {
       api.getLead(s.leadId).then(setLead);
     });
-    // Auto-join Agora voice channel
-    join().catch((err) => console.warn('[Agora] Join failed (demo mode):', err.message));
-    return () => { leave(); };
   }, [sessionId]);
 
   useEffect(() => {
@@ -42,10 +44,21 @@ export default function CallRoom() {
   }, []);
 
   const endCall = async () => {
-    await leave();
-    await api.endSession(sessionId!);
-    await api.generateHandoff(sessionId!);
-    navigate(`/handoff/${sessionId}`);
+    stopListening();
+    stopSpeaking();
+    try {
+      await api.endSession(sessionId!);
+      await api.generateHandoff(sessionId!);
+      navigate(`/handoff/${sessionId}`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to end call');
+    }
+  };
+
+  const handleTextSend = () => {
+    if (!input.trim()) return;
+    sendTranscript(input.trim());
+    setInput('');
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -77,23 +90,72 @@ export default function CallRoom() {
         </div>
       </header>
 
-      {/* Main content - 3 column layout */}
+      {/* Main content */}
+      {error && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3 text-sm text-red-700">
+          ⚠ {error} <button onClick={() => setError(null)} className="ml-2 underline">Dismiss</button>
+        </div>
+      )}
       <div className="flex-1 grid grid-cols-12 gap-0 overflow-hidden" style={{ height: 'calc(100vh - 73px)' }}>
-        {/* Transcript */}
+        {/* Transcript + Voice */}
         <div className="col-span-5 border-r border-[var(--color-border)] flex flex-col bg-white">
-          <div className="px-5 py-4 border-b border-[var(--color-border)]">
+          <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Live Transcript</h2>
+            {speaking && (
+              <span className="text-xs text-[var(--color-accent)] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse-dot"></span>
+                AI Speaking...
+              </span>
+            )}
           </div>
           <Transcript lines={transcript} />
-          <VoiceControls
-            muted={muted}
-            micMuted={micMuted}
-            joined={joined}
-            onMute={() => muteAgent(sessionId!)}
-            onUnmute={() => unmuteAgent(sessionId!)}
-            onToggleMic={toggleMic}
-            onSend={sendTranscript}
-          />
+
+          {/* Controls */}
+          <div className="border-t border-[var(--color-border)] p-4 space-y-3">
+            {interim && (
+              <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 italic">
+                🎤 {interim}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={listening ? stopListening : startListening}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  listening
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-200'
+                    : 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-light)]'
+                }`}
+              >
+                {listening ? '⏹ Stop Mic' : '🎙️ Start Talking'}
+              </button>
+              <button
+                onClick={muted ? () => unmuteAgent(sessionId!) : () => muteAgent(sessionId!)}
+                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                  muted ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-[var(--color-surface-alt)] text-[var(--color-muted)] border border-[var(--color-border)]'
+                }`}
+              >
+                {muted ? '🤖 AI Muted' : '🤖 AI Active'}
+              </button>
+              {listening && (
+                <span className="text-xs text-[var(--color-success)] flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse-dot"></span>
+                  Listening...
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTextSend()}
+                placeholder="Or type here..."
+                className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-opacity-20"
+              />
+              <button onClick={handleTextSend} className="px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--color-accent-light)] transition-colors">
+                Send
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Copilot Panel */}
@@ -104,7 +166,7 @@ export default function CallRoom() {
           <CopilotPanel fields={fields} />
         </div>
 
-        {/* Score + Info */}
+        {/* Score */}
         <div className="col-span-3 flex flex-col bg-white">
           <div className="px-5 py-4 border-b border-[var(--color-border)]">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Lead Score</h2>
