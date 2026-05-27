@@ -88,7 +88,7 @@ export default function Handoff() {
       </div>
 
       <main className="max-w-5xl mx-auto px-8 py-8">
-        {tab === 'handoff' && <HandoffExport handoff={handoff} />}
+        {tab === 'handoff' && <HandoffExport handoff={handoff} lead={lead} />}
         {tab === 'transcript' && session && (
           <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
             <div className="flex items-center justify-between mb-4">

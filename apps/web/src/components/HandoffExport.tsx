@@ -1,7 +1,59 @@
-import type { Handoff } from '@dealpilot/shared';
+import { useMemo, useState } from 'react';
+import type { Handoff, Lead } from '@dealpilot/shared';
+import {
+  CRM_COLUMNS,
+  buildCsvFilename,
+  downloadCsv,
+  handoffToCrmRow,
+  rowsToCsv,
+  rowsToExcelCsv,
+} from '../lib/csvExport';
 
-export default function HandoffExport({ handoff }: { handoff: Handoff }) {
-  const copyJson = () => navigator.clipboard.writeText(JSON.stringify(handoff.crmJson, null, 2));
+interface Props {
+  handoff: Handoff;
+  lead?: Lead | null;
+}
+
+export default function HandoffExport({ handoff, lead }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  const leadCtx = useMemo(
+    () => ({
+      contactName: lead?.contactName ?? handoff.crmJson.contact,
+      company: lead?.company ?? handoff.crmJson.company,
+      industry: lead?.industry ?? handoff.crmJson.industry,
+    }),
+    [lead, handoff],
+  );
+
+  const row = useMemo(() => handoffToCrmRow(handoff, leadCtx), [handoff, leadCtx]);
+  const csvCrm = useMemo(() => rowsToCsv([row]), [row]);
+  const csvExcel = useMemo(() => rowsToExcelCsv([row]), [row]);
+
+  const downloadCrm = () => {
+    const filename = buildCsvFilename(leadCtx.company || leadCtx.contactName, handoff.generatedAt);
+    downloadCsv(filename, csvCrm);
+  };
+
+  const downloadExcel = () => {
+    const filename = buildCsvFilename(
+      leadCtx.company || leadCtx.contactName,
+      handoff.generatedAt,
+      'excel',
+    );
+    downloadCsv(filename, csvExcel);
+  };
+
+  const handleCopyCsv = async () => {
+    try {
+      await navigator.clipboard.writeText(csvCrm);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* noop */
+    }
+  };
+
   const copyEmail = () => navigator.clipboard.writeText(handoff.followUpEmailDraft);
 
   return (
@@ -25,15 +77,67 @@ export default function HandoffExport({ handoff }: { handoff: Handoff }) {
         </div>
       </section>
 
-      {/* CRM JSON */}
+      {/* CRM Export — CSV */}
       <section className="bg-white rounded-xl border border-[var(--color-border)] p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">CRM Export (JSON)</h3>
-          <button onClick={copyJson} className="text-xs text-[var(--color-accent)] hover:underline">Copy</button>
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">CRM Export</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyCsv}
+              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] transition-colors"
+            >
+              {copied ? '✓ Copied' : 'Copy CSV'}
+            </button>
+            <button
+              onClick={downloadExcel}
+              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] transition-colors"
+              title="UTF-8 BOM + CRLF — open directly in Excel on Windows"
+            >
+              ⬇ Excel CSV
+            </button>
+            <button
+              onClick={downloadCrm}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white font-medium hover:bg-[var(--color-accent-light)] transition-colors"
+              title="Plain CSV optimized for CRM importers (Monday, HubSpot, Salesforce, Pipedrive…)"
+            >
+              ⬇ Download CSV (CRM)
+            </button>
+          </div>
         </div>
-        <pre className="text-xs bg-[var(--color-surface-alt)] p-4 rounded-lg overflow-x-auto font-mono">
-          {JSON.stringify(handoff.crmJson, null, 2)}
-        </pre>
+        <p className="text-xs text-[var(--color-muted)] mb-4">
+          The <strong>CRM</strong> file uses minimal quoting and no BOM — required for Monday.com, Pipedrive and Zoho.
+          The <strong>Excel</strong> variant adds a UTF-8 BOM and CRLF endings so Excel on Windows opens it with correct encoding.
+        </p>
+
+        {/* Preview table */}
+        <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {CRM_COLUMNS.map((col, i) => (
+                <tr
+                  key={col}
+                  className={i % 2 === 0 ? 'bg-[var(--color-surface-alt)]' : 'bg-white'}
+                >
+                  <td className="px-4 py-2 font-medium text-[var(--color-muted)] w-1/3 align-top whitespace-nowrap">
+                    {col}
+                  </td>
+                  <td className="px-4 py-2 break-words">
+                    {String(row[col] ?? '') || <span className="text-[var(--color-muted)] italic">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <details className="mt-4">
+          <summary className="text-xs text-[var(--color-muted)] cursor-pointer hover:text-[var(--color-primary)]">
+            Show raw CSV (CRM variant)
+          </summary>
+          <pre className="mt-2 text-xs bg-[var(--color-surface-alt)] p-3 rounded-lg overflow-x-auto font-mono whitespace-pre">
+{csvCrm}
+          </pre>
+        </details>
       </section>
 
       {/* Follow-up Email */}

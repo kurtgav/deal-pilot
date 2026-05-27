@@ -1,26 +1,70 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 
+export type SpeechMode = 'manual' | 'continuous';
+
 interface UseSpeechOptions {
   onTranscript: (text: string) => void;
   lang?: string;
   /**
    * Milliseconds of silence after which the mic auto-stops.
-   * Defaults to 2000ms (2 seconds). Set to 0 to disable auto-stop.
+   * Defaults to 2000ms. Set to 0 to disable auto-stop.
    */
   silenceTimeoutMs?: number;
+  /**
+   * Speech synthesis playback rate (0.1–10). Default 1.
+   * If changed while AI is speaking, the current utterance is cancelled
+   * and re-spoken from the start at the new rate.
+   */
+  rate?: number;
+  /**
+   * Transcript dispatch mode.
+   * - 'manual'      → onTranscript fires on every FINAL recognition result (legacy).
+   * - 'continuous'  → finals are buffered into a single turn; onTranscript fires
+   *                   ONCE when the mic stops (silence or manual). This is
+   *                   required for closed-loop conversational mode where each
+   *                   stop = one user turn = one AI response.
+   */
+  mode?: SpeechMode;
 }
 
-export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 2000 }: UseSpeechOptions) {
+interface StopOptions {
+  /** When true (default) any buffered text in continuous mode is flushed via onTranscript. */
+  flush?: boolean;
+}
+
+const MIN_RATE = 0.5;
+const MAX_RATE = 3;
+
+function clampRate(r: number): number {
+  if (Number.isNaN(r)) return 1;
+  return Math.min(MAX_RATE, Math.max(MIN_RATE, r));
+}
+
+export function useSpeech({
+  onTranscript,
+  lang = 'en-US',
+  silenceTimeoutMs = 2000,
+  rate = 1,
+  mode = 'manual',
+}: UseSpeechOptions) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [interim, setInterim] = useState('');
+
   const recognitionRef = useRef<any>(null);
   const onTranscriptRef = useRef(onTranscript);
+  const modeRef = useRef<SpeechMode>(mode);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasSpokenRef = useRef(false);
+  const bufferedTextRef = useRef<string>('');
 
-  // Keep callback ref fresh
+  // Speech synthesis state
+  const rateRef = useRef(clampRate(rate));
+  const lastSpokenTextRef = useRef<string>('');
+  const speakingRef = useRef(false);
+
+  // Keep callback/mode refs fresh
   useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -29,27 +73,40 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
     }
   }, []);
 
-  const stopListening = useCallback(() => {
+  const flushBuffer = useCallback(() => {
+    const text = bufferedTextRef.current.trim();
+    bufferedTextRef.current = '';
+    if (text) {
+      console.log('[STT] Flushing turn:', text);
+      onTranscriptRef.current(text);
+    }
+  }, []);
+
+  const stopListening = useCallback((opts: StopOptions = {}) => {
+    const { flush = true } = opts;
     clearSilenceTimer();
+
+    if (modeRef.current === 'continuous') {
+      if (flush) flushBuffer();
+      else bufferedTextRef.current = '';
+    }
+
     if (recognitionRef.current) {
-      // Detach handlers so onend can't trigger a restart
       recognitionRef.current.onend = null;
       recognitionRef.current.onresult = null;
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
     }
-    hasSpokenRef.current = false;
     setListening(false);
     setInterim('');
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, flushBuffer]);
 
-  // Reset (or arm) the silence timer. Called on every speech event.
   const armSilenceTimer = useCallback(() => {
     if (!silenceTimeoutMs) return;
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
       console.log('[STT] Silence detected — auto-stopping mic');
-      stopListening();
+      stopListening({ flush: true });
     }, silenceTimeoutMs);
   }, [silenceTimeoutMs, clearSilenceTimer, stopListening]);
 
@@ -60,11 +117,18 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
       return;
     }
 
-    // Stop any existing instance
+    // Defensive: if AI is currently speaking, don't open mic (would echo).
+    if (speakingRef.current) {
+      console.log('[STT] startListening called while AI is speaking — deferring');
+      return;
+    }
+
     if (recognitionRef.current) {
       recognitionRef.current.onend = null;
       try { recognitionRef.current.stop(); } catch {}
     }
+
+    bufferedTextRef.current = '';
 
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
@@ -74,19 +138,15 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
 
     recognition.onstart = () => {
       console.log('[STT] Listening started');
-      hasSpokenRef.current = false;
       setListening(true);
-      // Arm silence timer immediately — if they never start talking, mic still auto-closes
       armSilenceTimer();
     };
 
     recognition.onspeechstart = () => {
-      hasSpokenRef.current = true;
       clearSilenceTimer();
     };
 
     recognition.onspeechend = () => {
-      // Browser detected end of speech — start the silence countdown
       armSilenceTimer();
     };
 
@@ -103,9 +163,7 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
         }
       }
 
-      // Any speech activity → user is talking, cancel pending auto-stop
       if (interimText || finalText) {
-        hasSpokenRef.current = true;
         clearSilenceTimer();
       }
 
@@ -114,11 +172,18 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
       }
 
       if (finalText.trim()) {
+        const trimmed = finalText.trim();
         setInterim('');
-        console.log('[STT] Final:', finalText.trim());
-        onTranscriptRef.current(finalText.trim());
-        // After a final result, re-arm the silence timer.
-        // If they keep talking, onresult will fire again and clear it.
+        if (modeRef.current === 'continuous') {
+          // Buffer this final into the current turn — flush happens on silence/stop.
+          bufferedTextRef.current = (bufferedTextRef.current
+            ? bufferedTextRef.current + ' ' + trimmed
+            : trimmed);
+          console.log('[STT] Final (buffered):', trimmed);
+        } else {
+          console.log('[STT] Final:', trimmed);
+          onTranscriptRef.current(trimmed);
+        }
         armSilenceTimer();
       }
     };
@@ -127,18 +192,15 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
       console.error('[STT] Error:', e.error);
       if (e.error === 'not-allowed') {
         alert('Microphone access denied. Please allow microphone permission and try again.');
-        stopListening();
-      } else if (e.error === 'no-speech') {
-        // Browser's own no-speech timeout — treat as stop
-        stopListening();
+        stopListening({ flush: false });
+      } else if (e.error === 'no-speech' || e.error === 'aborted') {
+        stopListening({ flush: true });
       }
     };
 
     recognition.onend = () => {
-      // Browser ended recognition (often after silence). Don't restart —
-      // we want the mic to actually turn off when the client stops talking.
       console.log('[STT] Ended');
-      stopListening();
+      stopListening({ flush: true });
     };
 
     recognition.start();
@@ -154,17 +216,20 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
         try { recognitionRef.current.stop(); } catch {}
         recognitionRef.current = null;
       }
+      try { window.speechSynthesis?.cancel(); } catch {}
     };
   }, [clearSilenceTimer]);
 
-  const speak = useCallback((text: string) => {
+  // Internal speaker — uses the latest rate from rateRef
+  const speakInternal = useCallback((text: string) => {
     const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!synth || !text) return;
 
     synth.cancel();
+    lastSpokenTextRef.current = text;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
+    utterance.rate = rateRef.current;
     utterance.pitch = 1.0;
     utterance.lang = lang;
 
@@ -174,17 +239,51 @@ export function useSpeech({ onTranscript, lang = 'en-US', silenceTimeoutMs = 200
     );
     if (preferred) utterance.voice = preferred;
 
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onstart = () => {
+      speakingRef.current = true;
+      setSpeaking(true);
+    };
+    utterance.onend = () => {
+      speakingRef.current = false;
+      setSpeaking(false);
+    };
+    utterance.onerror = () => {
+      speakingRef.current = false;
+      setSpeaking(false);
+    };
 
     synth.speak(utterance);
   }, [lang]);
 
+  const speak = useCallback((text: string) => {
+    speakInternal(text);
+  }, [speakInternal]);
+
   const stopSpeaking = useCallback(() => {
-    window.speechSynthesis?.cancel();
+    try { window.speechSynthesis?.cancel(); } catch {}
+    speakingRef.current = false;
+    lastSpokenTextRef.current = '';
     setSpeaking(false);
   }, []);
 
-  return { listening, speaking, interim, startListening, stopListening, speak, stopSpeaking };
+  // Live rate updates: restart current utterance at new rate
+  useEffect(() => {
+    const next = clampRate(rate);
+    const prev = rateRef.current;
+    rateRef.current = next;
+    if (next !== prev && speakingRef.current && lastSpokenTextRef.current) {
+      console.log(`[TTS] Rate changed ${prev}x → ${next}x — restarting utterance`);
+      speakInternal(lastSpokenTextRef.current);
+    }
+  }, [rate, speakInternal]);
+
+  return {
+    listening,
+    speaking,
+    interim,
+    startListening,
+    stopListening,
+    speak,
+    stopSpeaking,
+  };
 }
