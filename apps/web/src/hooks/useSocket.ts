@@ -7,7 +7,7 @@ export function useSocket(sessionId: string, onAgentResponse?: (text: string) =>
   const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
 
   useEffect(() => {
-    const socket = io({ transports: ['websocket'] });
+    const socket = io('http://localhost:3001', { transports: ['websocket'] });
     socketRef.current = socket;
 
     socket.on('connect', () => socket.emit('session:join', { sessionId }));

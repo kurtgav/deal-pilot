@@ -1,4 +1,11 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+config({ path: resolve(__dirname, '../../../.env') });
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
@@ -7,6 +14,7 @@ import { leadsRouter } from './routes/leads.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { handoffRouter } from './routes/handoff.js';
 import { agoraRouter } from './routes/agora.js';
+import { ttsRouter } from './routes/tts.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -18,6 +26,7 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/handoff', handoffRouter);
 app.use('/api/agora', agoraRouter);
+app.use('/api/tts', ttsRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

@@ -22,8 +22,10 @@ export default function CallRoom() {
   useEffect(() => { reset(); }, [sessionId]);
 
   // TTS: speak AI responses aloud
+  // Use 'fil-PH' to support Filipino speech recognition (also recognizes English/Taglish)
   const { listening, speaking, interim, startListening, stopListening, speak, stopSpeaking } = useSpeech({
     onTranscript: (text) => sendTranscript(text),
+    lang: 'fil-PH',
   });
 
   // Socket: wire agent:response → speak
