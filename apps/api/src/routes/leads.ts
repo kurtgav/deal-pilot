@@ -11,29 +11,29 @@ leadsRouter.get('/', (_req, res) => {
 });
 
 leadsRouter.post('/', async (req, res) => {
-  const { contactName, company, companyUrl, industry, initialUseCase } = req.body;
+  const { contactName, companyUrl, industry, initialUseCase } = req.body;
+  let company = req.body.company || '';
+
+  let scrapedContext: string | undefined;
+  if (companyUrl) {
+    scrapedContext = await scrapeCompanyUrl(companyUrl);
+    if (!company) {
+      const nameMatch = scrapedContext.match(/^Company:\s*(.+)/m);
+      if (nameMatch) company = nameMatch[1].split('|')[0].split('-')[0].trim();
+    }
+  }
+
   const lead: Lead = {
     id: uuid(),
     contactName,
-    company: company || '',
+    company,
     companyUrl,
+    scrapedContext,
     industry,
     initialUseCase,
     status: 'new',
     createdAt: new Date().toISOString(),
   };
-
-  // Scrape company URL in background — don't block lead creation
-  if (companyUrl) {
-    scrapeCompanyUrl(companyUrl).then((context) => {
-      lead.scrapedContext = context;
-      // Extract company name from scraped content if not provided
-      if (!lead.company) {
-        const nameMatch = context.match(/^Company:\s*(.+)/m);
-        if (nameMatch) lead.company = nameMatch[1].split('|')[0].split('-')[0].trim();
-      }
-    }).catch(() => {});
-  }
 
   db.leads.push(lead);
   res.status(201).json(lead);
