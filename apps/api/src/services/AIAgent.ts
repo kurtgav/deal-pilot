@@ -1,91 +1,182 @@
 import type { CallSession, Lead, ExtractedSalesFields, TranscriptLine } from '@dealpilot/shared';
-import { retrieveProductInfo, retrieveObjectionRebuttal, getAllKnowledgeContext, getDiscoveryQuestions } from './RAGService.js';
+import {
+  retrieveProductInfo,
+  retrieveObjectionRebuttal,
+  getDiscoveryQuestions,
+} from './RAGService.js';
 
 const NIM_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NIM_MODEL = process.env.NIM_MODEL || 'meta/llama-3.3-70b-instruct';
 
+const LLM_TIMEOUT_MS = 30000;
+const LLM_MAX_RETRIES = 2;
+const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * Call the NVIDIA NIM-hosted LLM. Retries up to LLM_MAX_RETRIES on transient
+ * network/server errors with exponential back-off.
+ */
 export async function callLLM(system: string, user: string): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
   if (!apiKey) {
     throw new Error(
-      'NVIDIA_NIM_API_KEY is missing. Add it to apps/api/.env or root .env, then restart the dev server.'
+      'NVIDIA_NIM_API_KEY is missing. Add it to apps/api/.env or root .env, then restart the dev server.',
     );
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= LLM_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
 
-  try {
-    const res = await fetch(`${NIM_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: NIM_MODEL,
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-        max_tokens: 512,
-        temperature: 0.7,
-      }),
-      signal: controller.signal,
-    });
+    try {
+      const res = await fetch(`${NIM_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: NIM_MODEL,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          max_tokens: 320,
+          temperature: 0.5, // lower than before for more consistent sales answers
+          top_p: 0.9,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`NIM API ${res.status}: ${errText.slice(0, 200)}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        if (TRANSIENT_STATUS.has(res.status) && attempt < LLM_MAX_RETRIES) {
+          await delay(250 * Math.pow(2, attempt));
+          continue;
+        }
+        throw new Error(`NIM API ${res.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const data = await res.json();
+      const content: string | undefined = data.choices?.[0]?.message?.content;
+      if (!content || !content.trim()) {
+        return "I didn't quite catch that — could you say a little more about what you're looking for?";
+      }
+      return content.trim();
+    } catch (err: any) {
+      lastErr = err;
+      if (err?.name === 'AbortError' && attempt < LLM_MAX_RETRIES) {
+        await delay(250 * Math.pow(2, attempt));
+        continue;
+      }
+      if (attempt < LLM_MAX_RETRIES) {
+        await delay(250 * Math.pow(2, attempt));
+        continue;
+      }
+      break;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || "I didn't catch that — could you say that again?";
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastErr instanceof Error ? lastErr : new Error('LLM call failed');
 }
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------- Language detection (server side, mirror of frontend) ----------
+
+const FILIPINO_MARKERS =
+  /\b(ako|ikaw|kayo|kami|tayo|sila|niya|natin|namin|ninyo|nila|ang|ng|sa|mga|hindi|oo|opo|po|kasi|kaya|naman|talaga|paano|bakit|saan|kailan|sino|ano|alin|ilan|magkano|salamat|maganda|magandang|kumusta|paalam|gusto|ayaw|pwede|puwede|sige|meron|mayroon|wala|nasaan|tulungan|tungkol|kahit|para|pero|kung|noong|ngayon|bukas|kahapon|mahal|mura|presyo|trabaho)\b/i;
+
+function detectLanguage(text: string): 'en' | 'fil' {
+  return FILIPINO_MARKERS.test(text) ? 'fil' : 'en';
+}
+
+// ---------- System prompt ----------
 
 const SYSTEM_PROMPT = `You are DealPilot AI, an AI Sales Engineer on a live voice discovery call. You are professional, concise, and technically knowledgeable.
 
-You work for DealPilot — a real-time voice AI sales engineering platform for B2B SaaS companies.
+GOLDEN RULES (non-negotiable):
+1. NEVER fabricate product information. Only answer from the PRODUCT KNOWLEDGE provided in the user prompt.
+2. NEVER deny being an AI if asked directly.
+3. NEVER make binding commitments on pricing, contracts, SLAs, or delivery dates.
+4. If a question is outside your knowledge, say: "That's a great question — I'll flag this for our solutions team to follow up on."
+5. Keep responses to 1-3 short sentences. This is voice, not text.
+6. Be conversational. No bullet points, no numbered lists, no markdown.
+7. If the prospect speaks Filipino/Tagalog, respond in natural Filipino (Taglish is fine). If they speak English, respond in English.
 
-PRODUCT KNOWLEDGE:
-- Starter Plan ($499/mo): 50 AI calls/month, basic scoring, CRM export
-- Professional Plan ($1,499/mo): Unlimited calls, advanced scoring, real-time copilot, Slack/CRM integrations
-- Enterprise Plan (Custom): Everything + SOC 2, SSO, dedicated infrastructure, 99.9% SLA
+PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respects people's time.
 
-RULES:
-1. Keep responses SHORT — 1-3 sentences max. This is voice, not text.
-2. Be conversational and natural. No bullet points or lists in speech.
-3. If asked something you don't know, say "I'll flag that for our team to follow up on."
-4. Never deny being an AI.
-5. Never make binding pricing or contract commitments.
-6. Ask discovery questions to understand the prospect's needs.
+CALL STRUCTURE:
+- Discovery first: understand needs before pitching.
+- Answer product/technical questions strictly from PRODUCT KNOWLEDGE.
+- Handle objections calmly using SUGGESTED REBUTTAL when provided.
+- When enough info is gathered, recommend a fitting plan.
+- Close with a clear next-step question.`;
 
-PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respects people's time.`;
+// ---------- Public API ----------
 
 export async function generateAgentResponse(
   session: CallSession,
   lead: Lead,
-  latestInput: string
+  latestInput: string,
 ): Promise<{ text: string; stage: string }> {
   const stage = determineStage(session.extractedFields, session.transcript);
-  const history = session.transcript.slice(-8).map(l => `${l.speaker}: ${l.text}`).join('\n');
+  const history = session.transcript
+    .slice(-8)
+    .map((l) => `${l.speaker}: ${l.text}`)
+    .join('\n');
 
-  const context = `You are on a call with ${lead.contactName} from ${lead.company} (${lead.industry}).
-Their initial interest: ${lead.initialUseCase}
+  const language = detectLanguage(latestInput);
+  const productContext = retrieveProductInfo(latestInput);
+  const objectionRebuttal = retrieveObjectionRebuttal(latestInput);
+  const discoveryQs = getDiscoveryQuestions(stage);
+
+  const ragSections: string[] = [`PRODUCT KNOWLEDGE (top matches):\n${productContext}`];
+  if (objectionRebuttal) {
+    ragSections.push(`OBJECTION DETECTED — SUGGESTED REBUTTAL:\n${objectionRebuttal}`);
+  }
+  if (discoveryQs.length > 0 && stage !== 'close' && stage !== 'recommendation') {
+    ragSections.push(
+      `SUGGESTED DISCOVERY QUESTIONS FOR THIS STAGE (${stage}):\n${discoveryQs
+        .map((q) => `- ${q}`)
+        .join('\n')}`,
+    );
+  }
+
+  const languageInstruction =
+    language === 'fil'
+      ? '\n\nThe prospect is speaking Filipino/Tagalog. Reply in natural Filipino or Taglish — keep it short and conversational.'
+      : '';
+
+  const userPrompt = `LEAD CONTEXT:
+- Name: ${lead.contactName}
+- Company: ${lead.company}
+- Industry: ${lead.industry}
+- Initial Interest: ${lead.initialUseCase}
 
 CURRENT CALL STAGE: ${stage}
-EXTRACTED SO FAR: ${JSON.stringify(session.extractedFields, null, 0)}
+EXTRACTED SO FAR: ${JSON.stringify(session.extractedFields)}
 
-CONVERSATION:
+${ragSections.join('\n\n')}
+
+CONVERSATION (most recent first is at bottom):
 ${history}
 
-PROSPECT just said: "${latestInput}"
+PROSPECT just said: "${latestInput}"${languageInstruction}
 
-Respond naturally as DealPilot AI. 1-3 sentences max.`;
+Respond naturally as DealPilot AI. 1-3 short sentences. No markdown.`;
 
-  const text = await callLLM(SYSTEM_PROMPT, context);
+  const text = await callLLM(SYSTEM_PROMPT, userPrompt);
   return { text, stage };
 }
 
-export function determineStage(fields: ExtractedSalesFields, transcript: TranscriptLine[]): string {
-  const turnCount = transcript.filter(t => t.speaker === 'PROSPECT').length;
+export function determineStage(
+  fields: ExtractedSalesFields,
+  transcript: TranscriptLine[],
+): string {
+  const turnCount = transcript.filter((t) => t.speaker === 'PROSPECT').length;
   if (turnCount <= 1) return 'intro';
   if (!fields.useCase) return 'use_case';
   if (fields.painPoints.length === 0) return 'pain_points';

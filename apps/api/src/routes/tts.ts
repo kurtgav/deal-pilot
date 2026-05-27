@@ -1,17 +1,17 @@
 import { Router } from 'express';
-import { synthesizeSpeechElevenLabs, detectLanguage } from '../services/VoicePipeline.js';
+import { synthesizeSpeechElevenLabs } from '../services/VoicePipeline.js';
 
 export const ttsRouter = Router();
 
 /**
  * POST /api/tts
- * Body: { text: string, language?: 'en' | 'fil' }
+ * Body: { text: string }
  * Returns: audio/mpeg stream
  *
- * Uses ElevenLabs eleven_multilingual_v2 for smooth Filipino + English synthesis.
+ * English-only synthesis via ElevenLabs.
  */
 ttsRouter.post('/', async (req, res) => {
-  const { text, language } = req.body as { text?: string; language?: 'en' | 'fil' };
+  const { text } = req.body as { text?: string };
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text is required' });
@@ -20,14 +20,8 @@ ttsRouter.post('/', async (req, res) => {
     return res.status(400).json({ error: 'text too long (max 2000 chars)' });
   }
 
-  // Auto-detect language if not provided (helps voice tuning)
-  const detectedLang = language || detectLanguage(text);
-
   try {
-    const audioBuffer = await synthesizeSpeechElevenLabs({
-      text,
-      language: detectedLang,
-    });
+    const audioBuffer = await synthesizeSpeechElevenLabs({ text });
 
     if (!audioBuffer) {
       return res.status(503).json({
@@ -46,13 +40,13 @@ ttsRouter.post('/', async (req, res) => {
 });
 
 /**
- * GET /api/tts/health - check if ElevenLabs is configured
+ * GET /api/tts/health — check if ElevenLabs is configured.
  */
 ttsRouter.get('/health', (_req, res) => {
   const configured = !!process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'xxx';
   res.json({
     configured,
-    voiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
-    model: process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2',
+    voiceId: process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
+    model: process.env.ELEVENLABS_MODEL || 'eleven_monolingual_v1',
   });
 });

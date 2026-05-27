@@ -13,5 +13,7 @@ export interface ServerToClientEvents {
   'fields:update': (payload: Partial<ExtractedSalesFields>) => void;
   'score:update': (payload: { score: number }) => void;
   'agent:response': (payload: { text: string; audioUrl?: string }) => void;
+  'agent:thinking': (payload: { sessionId: string; thinking: boolean }) => void;
+  'agent:error': (payload: { sessionId: string; message: string }) => void;
   'session:ended': (payload: { sessionId: string }) => void;
 }
