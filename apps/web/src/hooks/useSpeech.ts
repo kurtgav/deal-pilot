@@ -16,7 +16,8 @@ interface UseSpeechOptions {
   silenceTimeoutMs?: number;
   /**
    * Speech synthesis playback rate (0.5–3). Default 1.
-   * For ElevenLabs audio playback this updates live via `playbackRate`.
+   * For ElevenLabs audio playback this updates live via `playbackRate`
+   * (with `preservesPitch` so 1.5x/2x stay natural-sounding).
    * For browser SpeechSynthesis fallback, mid-utterance changes restart
    * the current line at the new rate (Web Speech API limitation).
    */
@@ -44,6 +45,26 @@ function clampRate(r: number): number {
   return Math.min(MAX_RATE, Math.max(MIN_RATE, r));
 }
 
+// ---------- Voice pre-loading (browser TTS) ----------
+// Chrome loads SpeechSynthesis voices async; pre-touching getVoices() and
+// listening for `voiceschanged` cuts the first-utterance latency noticeably.
+let voicesPreloadStarted = false;
+function preloadVoices() {
+  if (typeof window === 'undefined') return;
+  if (voicesPreloadStarted) return;
+  voicesPreloadStarted = true;
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  try {
+    synth.getVoices();
+    synth.addEventListener?.('voiceschanged', () => {
+      synth.getVoices();
+    });
+  } catch {
+    /* noop */
+  }
+}
+
 // ---------- Filipino language helpers (TTS) ----------
 
 /** Detect Filipino/Tagalog text by looking for common Filipino words. */
@@ -52,11 +73,6 @@ function detectFilipino(text: string): boolean {
   return filipinoIndicators.test(text);
 }
 
-/**
- * Phonetic preprocessor for Filipino text when no native Filipino TTS voice is
- * available. Maps short particles/words to phonetic spellings that an English
- * TTS engine will pronounce closer to Filipino.
- */
 function preprocessFilipinoForTTS(text: string): string {
   const phoneticMap: [RegExp, string][] = [
     [/\bna\b/gi, 'nah'], [/\bsa\b/gi, 'sah'], [/\bng\b/gi, 'nang'],
@@ -88,6 +104,25 @@ function preprocessFilipinoForTTS(text: string): string {
   return processed;
 }
 
+/** Pre-warm mic permission with explicit echo/noise constraints. */
+async function ensureMicPermission(): Promise<void> {
+  if (typeof navigator === 'undefined') return;
+  if (!navigator.mediaDevices?.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+    // Immediately release; SpeechRecognition opens its own stream after.
+    stream.getTracks().forEach((t) => t.stop());
+  } catch {
+    /* user will see the SpeechRecognition not-allowed error if denied */
+  }
+}
+
 // ---------- Hook ----------
 
 export function useSpeech({
@@ -109,11 +144,14 @@ export function useSpeech({
   const bufferedTextRef = useRef<string>('');
 
   // TTS refs
-  const audioRef = useRef<HTMLAudioElement | null>(null);  // ElevenLabs
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const rateRef = useRef(clampRate(rate));
   const lastSpokenTextRef = useRef<string>('');
   const lastLanguageRef = useRef<'en' | 'fil'>('en');
   const speakingRef = useRef(false);
+
+  // Pre-load voices once on first mount of the hook anywhere in the app.
+  useEffect(() => { preloadVoices(); }, []);
 
   // Keep callback/mode refs fresh
   useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
@@ -165,7 +203,7 @@ export function useSpeech({
     }, silenceTimeoutMs);
   }, [silenceTimeoutMs, clearSilenceTimer, stopListening]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('Speech Recognition not supported. Please use Google Chrome.');
@@ -178,6 +216,9 @@ export function useSpeech({
       return;
     }
 
+    // Warm mic permission with echo-cancellation hints; safe if already granted.
+    await ensureMicPermission();
+
     if (recognitionRef.current) {
       recognitionRef.current.onend = null;
       try { recognitionRef.current.stop(); } catch {}
@@ -186,7 +227,6 @@ export function useSpeech({
     bufferedTextRef.current = '';
 
     const recognition = new SpeechRecognition();
-    // 'fil-PH' allows Filipino + English (Taglish/code-switching).
     recognition.lang = (lang === 'fil-PH' || lang === 'tl-PH') ? 'fil-PH' : lang;
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -232,11 +272,26 @@ export function useSpeech({
 
     recognition.onerror = (e: any) => {
       console.error('[STT] Error:', e.error);
-      if (e.error === 'not-allowed') {
-        alert('Microphone access denied. Please allow microphone permission and try again.');
-        stopListening({ flush: false });
-      } else if (e.error === 'no-speech' || e.error === 'aborted') {
-        stopListening({ flush: true });
+      switch (e.error) {
+        case 'not-allowed':
+        case 'service-not-allowed':
+          alert('Microphone access denied. Please allow microphone permission and try again.');
+          stopListening({ flush: false });
+          break;
+        case 'audio-capture':
+          alert('No microphone detected. Please connect a mic and try again.');
+          stopListening({ flush: false });
+          break;
+        case 'network':
+          // Transient; let onend handle restart in the closed loop.
+          stopListening({ flush: true });
+          break;
+        case 'no-speech':
+        case 'aborted':
+          stopListening({ flush: true });
+          break;
+        default:
+          stopListening({ flush: true });
       }
     };
 
@@ -245,8 +300,12 @@ export function useSpeech({
       stopListening({ flush: true });
     };
 
-    recognition.start();
-    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (err) {
+      console.warn('[STT] start() threw, likely already running:', err);
+    }
   }, [lang, armSilenceTimer, clearSilenceTimer, stopListening]);
 
   // ---------- Cleanup ----------
@@ -286,14 +345,19 @@ export function useSpeech({
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
-      // Stop any currently playing audio
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch {}
         audioRef.current.src = '';
       }
 
       const audio = new Audio(url);
-      audio.playbackRate = rateRef.current;   // apply current rate
+      // preservesPitch keeps voice natural at 1.5x/2x — without this,
+      // accelerated audio sounds chipmunky.
+      // Both modern (preservesPitch) and webkit-prefixed names are set
+      // for cross-browser support.
+      (audio as any).preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      audio.playbackRate = rateRef.current;
       audioRef.current = audio;
 
       return await new Promise<boolean>((resolve) => {
@@ -335,7 +399,6 @@ export function useSpeech({
     const synth = window.speechSynthesis;
     if (!synth) return;
 
-    // Ensure voices loaded (Chrome loads them asynchronously)
     let voices = synth.getVoices();
     if (voices.length === 0) {
       await new Promise<void>((resolve) => {
@@ -349,30 +412,30 @@ export function useSpeech({
     let usePhoneticFix = false;
 
     if (isFilipino) {
-      preferred = voices.find(v =>
+      preferred = voices.find((v) =>
         v.name.toLowerCase().includes('google') &&
-        (v.lang === 'fil-PH' || v.lang === 'tl-PH' || v.name.toLowerCase().includes('filipino'))
+        (v.lang === 'fil-PH' || v.lang === 'tl-PH' || v.name.toLowerCase().includes('filipino')),
       );
       if (!preferred) {
-        preferred = voices.find(v =>
+        preferred = voices.find((v) =>
           v.lang === 'fil-PH' || v.lang === 'tl-PH' ||
           v.name.toLowerCase().includes('filipino') ||
-          v.name.toLowerCase().includes('tagalog')
+          v.name.toLowerCase().includes('tagalog'),
         );
       }
       if (!preferred) {
-        preferred = voices.find(v => v.lang.startsWith('fil') || v.lang.startsWith('tl'));
+        preferred = voices.find((v) => v.lang.startsWith('fil') || v.lang.startsWith('tl'));
       }
       if (!preferred) {
         usePhoneticFix = true;
-        preferred = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-          || voices.find(v => v.lang.startsWith('en'));
+        preferred = voices.find((v) => v.name.includes('Google') && v.lang.startsWith('en'))
+          || voices.find((v) => v.lang.startsWith('en'));
         console.warn('[TTS] No Filipino voice available — using phonetic fallback.');
       }
     } else {
-      preferred = voices.find(v =>
-        v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Natural')
-      ) || voices.find(v => v.lang.startsWith('en'));
+      preferred = voices.find((v) =>
+        v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Natural'),
+      ) || voices.find((v) => v.lang.startsWith('en'));
     }
 
     const finalText = usePhoneticFix ? preprocessFilipinoForTTS(text) : text;
@@ -405,14 +468,12 @@ export function useSpeech({
 
     console.log(`[TTS] Speaking (${language}):`, text.slice(0, 80));
 
-    // Stop any in-flight TTS first
     try { window.speechSynthesis?.cancel(); } catch {}
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch {}
       audioRef.current = null;
     }
 
-    // Try ElevenLabs first; fallback to browser TTS on failure.
     const success = await speakWithElevenLabs(text, language);
     if (success) return;
 
@@ -432,9 +493,12 @@ export function useSpeech({
     setSpeaking(false);
   }, []);
 
+  /** Click-to-interrupt barge-in: stop AI immediately. Caller can then start mic. */
+  const interruptSpeech = useCallback(() => {
+    stopSpeaking();
+  }, [stopSpeaking]);
+
   // ---------- Live rate updates ----------
-  // ElevenLabs path: HTMLAudioElement.playbackRate is live — no restart needed.
-  // SpeechSynthesis path: cancel and re-speak the current utterance at new rate.
   useEffect(() => {
     const next = clampRate(rate);
     const prev = rateRef.current;
@@ -442,7 +506,9 @@ export function useSpeech({
     if (next === prev) return;
 
     if (audioRef.current && !audioRef.current.paused) {
-      console.log(`[TTS] Rate changed ${prev}x → ${next}x — applying live to ElevenLabs audio`);
+      console.log(`[TTS] Rate changed ${prev}x → ${next}x — applying live to ElevenLabs audio (preservesPitch)`);
+      (audioRef.current as any).preservesPitch = true;
+      (audioRef.current as any).webkitPreservesPitch = true;
       audioRef.current.playbackRate = next;
       return;
     }
@@ -452,7 +518,6 @@ export function useSpeech({
       const text = lastSpokenTextRef.current;
       const isFilipino = lastLanguageRef.current === 'fil';
       try { window.speechSynthesis.cancel(); } catch {}
-      // Fire & forget — speakWithBrowser is async but we don't need to await.
       void speakWithBrowser(text, isFilipino);
     }
   }, [rate, speakWithBrowser]);
@@ -465,5 +530,6 @@ export function useSpeech({
     stopListening,
     speak,
     stopSpeaking,
+    interruptSpeech,
   };
 }
