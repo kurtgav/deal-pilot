@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: dealpilot-api
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build
+    startCommand: node apps/api/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: NVIDIA_NIM_API_KEY
+        sync: false
+      - key: NIM_MODEL
+        value: meta/llama-3.3-70b-instruct
+      - key: AGORA_APP_ID
+        sync: false
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
