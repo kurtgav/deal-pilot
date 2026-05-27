@@ -6,7 +6,11 @@ const NIM_MODEL = process.env.NIM_MODEL || 'meta/llama-3.3-70b-instruct';
 
 export async function callLLM(system: string, user: string): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
-  if (!apiKey) throw new Error('NVIDIA_NIM_API_KEY not set');
+  if (!apiKey) {
+    throw new Error(
+      'NVIDIA_NIM_API_KEY is missing. Add it to apps/api/.env or root .env, then restart the dev server.'
+    );
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
