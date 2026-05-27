@@ -14,7 +14,7 @@ import LeadScoreGauge from '../components/LeadScoreGauge';
 const MUTED_RESUME_DELAY_MS = 600;
 // Tiny delay after AI's TTS ends before re-opening the mic, so the speaker tail
 // doesn't get re-captured by the microphone.
-const POST_SPEECH_RESUME_DELAY_MS = 250;
+const POST_SPEECH_RESUME_DELAY_MS = 150;
 
 export default function CallRoom() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -40,6 +40,8 @@ export default function CallRoom() {
 
   // ------- Closed-loop transcript dispatcher -------
   const handleProspectTurn = (text: string) => {
+    // Mic already stopped by useSpeech (silence timeout flushes and stops).
+    // Send transcript and wait for AI to respond.
     sendTranscript(text);
     if (convoActiveRef.current && mutedRef.current) {
       scheduleResume(MUTED_RESUME_DELAY_MS);
@@ -58,14 +60,24 @@ export default function CallRoom() {
   } = useSpeech({
     onTranscript: handleProspectTurn,
     lang: 'fil-PH',
+    silenceTimeoutMs: 1500,
     rate: speechRate,
     mode: 'continuous',
   });
 
   // Socket agent responses are spoken, then the loop closes via the speaking-end effect.
-  const { sendTranscript, muteAgent, unmuteAgent } = useSocket(sessionId!, (aiText) => {
-    speak(aiText);
-  });
+  const { sendTranscript, muteAgent, unmuteAgent } = useSocket(
+    sessionId!,
+    (aiText) => {
+      // Stop mic immediately when AI is about to speak
+      if (listening) stopListening({ flush: false });
+      speak(aiText);
+    },
+    (thinking) => {
+      // Stop mic as soon as AI starts generating a response
+      if (thinking && listening) stopListening({ flush: false });
+    },
+  );
 
   // ------- Resume scheduling helper -------
   const clearResumeTimer = () => {

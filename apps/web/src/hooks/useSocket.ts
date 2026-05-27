@@ -4,7 +4,7 @@ import { useSessionStore } from '../store/sessionStore';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
-export function useSocket(sessionId: string, onAgentResponse?: (text: string) => void) {
+export function useSocket(sessionId: string, onAgentResponse?: (text: string) => void, onAgentThinking?: (thinking: boolean) => void) {
   const socketRef = useRef<Socket | null>(null);
   const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
 
@@ -26,6 +26,9 @@ export function useSocket(sessionId: string, onAgentResponse?: (text: string) =>
     socket.on('score:update', ({ score }) => setScore(score));
     socket.on('agent:response', ({ text }) => {
       onAgentResponse?.(text);
+    });
+    socket.on('agent:thinking', ({ thinking }) => {
+      onAgentThinking?.(thinking);
     });
 
     return () => { socket.disconnect(); };

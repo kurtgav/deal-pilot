@@ -8,13 +8,12 @@ import {
 const NIM_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NIM_MODEL = process.env.NIM_MODEL || 'meta/llama-3.3-70b-instruct';
 
-const LLM_TIMEOUT_MS = 30000;
-const LLM_MAX_RETRIES = 2;
+const LLM_TIMEOUT_MS = 15000;
+const LLM_MAX_RETRIES = 1;
 const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 /**
- * Call the NVIDIA NIM-hosted LLM. Retries up to LLM_MAX_RETRIES on transient
- * network/server errors with exponential back-off.
+ * Call the NVIDIA NIM-hosted LLM. Optimized for fast voice responses.
  */
 export async function callLLM(system: string, user: string): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
@@ -39,9 +38,9 @@ export async function callLLM(system: string, user: string): Promise<string> {
             { role: 'system', content: system },
             { role: 'user', content: user },
           ],
-          max_tokens: 320,
-          temperature: 0.5, // lower than before for more consistent sales answers
-          top_p: 0.9,
+          max_tokens: 150,
+          temperature: 0.3,
+          top_p: 0.85,
         }),
         signal: controller.signal,
       });
@@ -49,7 +48,7 @@ export async function callLLM(system: string, user: string): Promise<string> {
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
         if (TRANSIENT_STATUS.has(res.status) && attempt < LLM_MAX_RETRIES) {
-          await delay(250 * Math.pow(2, attempt));
+          await delay(100);
           continue;
         }
         throw new Error(`NIM API ${res.status}: ${errText.slice(0, 200)}`);
@@ -63,12 +62,8 @@ export async function callLLM(system: string, user: string): Promise<string> {
       return content.trim();
     } catch (err: any) {
       lastErr = err;
-      if (err?.name === 'AbortError' && attempt < LLM_MAX_RETRIES) {
-        await delay(250 * Math.pow(2, attempt));
-        continue;
-      }
       if (attempt < LLM_MAX_RETRIES) {
-        await delay(250 * Math.pow(2, attempt));
+        await delay(100);
         continue;
       }
       break;
@@ -134,7 +129,7 @@ export async function generateAgentResponse(
 ): Promise<{ text: string; stage: string }> {
   const stage = determineStage(session.extractedFields, session.transcript);
   const history = session.transcript
-    .slice(-8)
+    .slice(-6)
     .map((l) => `${l.speaker}: ${l.text}`)
     .join('\n');
 

@@ -142,6 +142,10 @@ export function useSpeech({
   const modeRef = useRef<SpeechMode>(mode);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bufferedTextRef = useRef<string>('');
+  /** When true, the mic should auto-restart if it ends unexpectedly. */
+  const keepAliveRef = useRef(false);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startListeningRef = useRef<() => void>(() => {});
 
   // TTS refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -178,6 +182,11 @@ export function useSpeech({
   const stopListening = useCallback((opts: StopOptions = {}) => {
     const { flush = true } = opts;
     clearSilenceTimer();
+    keepAliveRef.current = false;
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
 
     if (modeRef.current === 'continuous') {
       if (flush) flushBuffer();
@@ -224,6 +233,7 @@ export function useSpeech({
       try { recognitionRef.current.stop(); } catch {}
     }
 
+    keepAliveRef.current = true;
     bufferedTextRef.current = '';
 
     const recognition = new SpeechRecognition();
@@ -282,12 +292,19 @@ export function useSpeech({
           alert('No microphone detected. Please connect a mic and try again.');
           stopListening({ flush: false });
           break;
-        case 'network':
-          // Transient; let onend handle restart in the closed loop.
-          stopListening({ flush: true });
-          break;
         case 'no-speech':
+          // Chrome fires this after ~5s of silence. Auto-restart if keepAlive.
+          if (keepAliveRef.current && !speakingRef.current) {
+            console.log('[STT] no-speech — restarting mic');
+            // Recognition will fire onend next, which handles restart.
+          } else {
+            stopListening({ flush: true });
+          }
+          break;
         case 'aborted':
+          // Aborted by us or browser — let onend handle restart.
+          break;
+        case 'network':
           stopListening({ flush: true });
           break;
         default:
@@ -297,7 +314,24 @@ export function useSpeech({
 
     recognition.onend = () => {
       console.log('[STT] Ended');
-      stopListening({ flush: true });
+      recognitionRef.current = null;
+      setListening(false);
+
+      // Auto-restart if keepAlive is set and AI isn't speaking
+      if (keepAliveRef.current && !speakingRef.current) {
+        console.log('[STT] Auto-restarting mic (keepAlive)');
+        restartTimerRef.current = setTimeout(() => {
+          restartTimerRef.current = null;
+          if (keepAliveRef.current && !speakingRef.current) {
+            startListeningRef.current();
+          }
+        }, 100);
+      } else {
+        // Intentional stop or AI is speaking — flush buffer
+        if (modeRef.current === 'continuous') {
+          flushBuffer();
+        }
+      }
     };
 
     try {
@@ -308,11 +342,19 @@ export function useSpeech({
     }
   }, [lang, armSilenceTimer, clearSilenceTimer, stopListening]);
 
+  // Keep ref in sync so onend restart always uses latest startListening.
+  useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
+
   // ---------- Cleanup ----------
 
   useEffect(() => {
     return () => {
+      keepAliveRef.current = false;
       clearSilenceTimer();
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (recognitionRef.current) {
         recognitionRef.current.onend = null;
         try { recognitionRef.current.stop(); } catch {}

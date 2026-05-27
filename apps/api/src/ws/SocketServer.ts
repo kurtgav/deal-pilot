@@ -94,20 +94,22 @@ export function initSocketServer(httpServer: HttpServer) {
       session.transcript.push(line);
       io.to(sessionId).emit('transcript:update', line);
 
-      // Field extraction — fire-and-forget, doesn't block the AI response.
-      extractFields(session.transcript, session.extractedFields)
-        .then((delta) => {
-          if (Object.keys(delta).length === 0) return;
-          mergeFields(session.extractedFields, delta);
-          io.to(sessionId).emit('fields:update', delta);
+      // Field extraction — delayed to not compete with AI response for LLM bandwidth.
+      setTimeout(() => {
+        extractFields(session.transcript, session.extractedFields)
+          .then((delta) => {
+            if (Object.keys(delta).length === 0) return;
+            mergeFields(session.extractedFields, delta);
+            io.to(sessionId).emit('fields:update', delta);
 
-          const score = scoreLeadFromFields(session.extractedFields);
-          session.leadScore = score;
-          io.to(sessionId).emit('score:update', { score });
-        })
-        .catch((err) => {
-          console.warn('[FieldExtractor] failed:', err?.message ?? err);
-        });
+            const score = scoreLeadFromFields(session.extractedFields);
+            session.leadScore = score;
+            io.to(sessionId).emit('score:update', { score });
+          })
+          .catch((err) => {
+            console.warn('[FieldExtractor] failed:', err?.message ?? err);
+          });
+      }, 3000);
 
       // Only generate AI replies for prospect speech, and only if not muted.
       if (mutedSessions.has(sessionId) || speaker !== 'PROSPECT') return;
