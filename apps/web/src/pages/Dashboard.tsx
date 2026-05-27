@@ -612,7 +612,7 @@ function NewLeadScreen({ onCancel, onCreated, onError }: { onCancel: () => void;
     if (!form.contactName || !form.companyUrl) return;
     setSaving(true);
     try {
-      const lead = await api.createLead({ ...form, company: form.companyUrl });
+      const lead = await api.createLead(form);
       onCreated(lead);
     } catch {
       onError('Could not create the lead because the API is not reachable.');

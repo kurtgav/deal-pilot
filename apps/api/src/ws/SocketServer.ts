@@ -52,7 +52,19 @@ export function initSocketServer(httpServer: HttpServer) {
       if (session && session.status === 'active' && session.transcript.length === 0) {
         const lead = db.leads.find((l) => l.id === session.leadId);
         if (lead) {
-          const introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer for today's call. I'm here to understand your needs and see how we can help. To get started, could you tell me a bit about what your team is working on and what brought you to us today?`;
+          let introText: string;
+          if (lead.scrapedContext) {
+            // Generate a personalized intro using the AI with company context
+            try {
+              const { text } = await generateAgentResponse(session, lead,
+                '[SYSTEM: Generate your opening greeting. Reference something specific about their company to show you did your research.]');
+              introText = text;
+            } catch {
+              introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer. I've done some research on ${lead.company} and I'm excited to explore how we can help. What's the main challenge you're looking to solve?`;
+            }
+          } else {
+            introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer for today's call. I'm here to understand your needs and see how we can help. To get started, could you tell me a bit about what your team is working on?`;
+          }
           const aiLine: TranscriptLine = {
             speaker: 'AI',
             text: introText,

@@ -8,6 +8,7 @@ import { sessionsRouter } from './routes/sessions.js';
 import { handoffRouter } from './routes/handoff.js';
 import { agoraRouter } from './routes/agora.js';
 import { ttsRouter } from './routes/tts.js';
+import { researchRouter } from './routes/research.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,6 +21,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/handoff', handoffRouter);
 app.use('/api/agora', agoraRouter);
 app.use('/api/tts', ttsRouter);
+app.use('/api/research', researchRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
