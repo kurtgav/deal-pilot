@@ -13,3 +13,6 @@ dist/
 *.key
 *.cert
 *.p12
+
+# Build artifacts
+*.tsbuildinfo

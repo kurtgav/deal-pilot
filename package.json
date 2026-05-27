@@ -3,9 +3,12 @@
   "private": true,
   "scripts": {
     "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build && pnpm --filter @dealpilot/web build",
+    "build:api": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build",
+    "build:web": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/web build",
     "dev:api": "pnpm --filter @dealpilot/api dev",
-    "dev:web": "pnpm --filter @dealpilot/web dev"
+    "dev:web": "pnpm --filter @dealpilot/web dev",
+    "start:api": "node apps/api/dist/index.js"
   },
   "engines": {
     "node": ">=18"

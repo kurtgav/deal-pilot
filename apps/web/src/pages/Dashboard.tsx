@@ -604,15 +604,15 @@ function ActiveCallScreen({ lead, onEnd }: { lead: Lead; onEnd: () => void }) {
 }
 
 function NewLeadScreen({ onCancel, onCreated, onError }: { onCancel: () => void; onCreated: (lead: Lead) => void; onError: (message: string) => void }) {
-  const [form, setForm] = useState({ contactName: '', company: '', industry: '', initialUseCase: '' });
+  const [form, setForm] = useState({ contactName: '', companyUrl: '', industry: '', initialUseCase: '' });
   const [saving, setSaving] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!form.contactName || !form.company) return;
+    if (!form.contactName || !form.companyUrl) return;
     setSaving(true);
     try {
-      const lead = await api.createLead(form);
+      const lead = await api.createLead({ ...form, company: form.companyUrl });
       onCreated(lead);
     } catch {
       onError('Could not create the lead because the API is not reachable.');
@@ -626,10 +626,11 @@ function NewLeadScreen({ onCancel, onCreated, onError }: { onCancel: () => void;
       <form onSubmit={submit} className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Contact Name" value={form.contactName} onChange={(value) => setForm({ ...form, contactName: value })} required />
-          <Field label="Company" value={form.company} onChange={(value) => setForm({ ...form, company: value })} required />
+          <Field label="Company Website URL" value={form.companyUrl} onChange={(value) => setForm({ ...form, companyUrl: value })} required placeholder="https://example.com" />
           <Field label="Industry" value={form.industry} onChange={(value) => setForm({ ...form, industry: value })} />
           <Field label="Initial Use Case" value={form.initialUseCase} onChange={(value) => setForm({ ...form, initialUseCase: value })} />
         </div>
+        <p className="text-xs text-[var(--color-muted)]">DealPilot will scrape the company website to personalize AI calls.</p>
         <div className="flex gap-3">
           <button disabled={saving} className="app-button-primary px-4 py-2 text-sm disabled:opacity-60">{saving ? 'Creating...' : 'Create Lead'}</button>
           <button type="button" onClick={onCancel} className="app-button-ghost px-4 py-2 text-sm">Cancel</button>
@@ -889,11 +890,11 @@ function StatusBadge({ status }: { status: Lead['status'] }) {
   return <Badge tone={tone}>{status === 'in_call' && <span className="mr-1 h-1.5 w-1.5 rounded-full bg-current" />}{label}</Badge>;
 }
 
-function Field({ label, value, onChange, required }: { label: string; value: string; onChange: (value: string) => void; required?: boolean }) {
+function Field({ label, value, onChange, required, placeholder }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string }) {
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}{required && ' *'}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} required={required} className="app-input mt-1 h-10 w-full px-3 text-sm" />
+      <input value={value} onChange={(event) => onChange(event.target.value)} required={required} className="mt-1 h-10 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" />
     </label>
   );
 }
