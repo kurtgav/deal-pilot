@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Keys / certs
+*.pem
+*.key
+*.cert
+*.p12

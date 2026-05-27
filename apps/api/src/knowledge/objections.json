@@ -1,0 +1,26 @@
+[
+  {
+    "objection": "It's too expensive",
+    "rebuttal": "I understand budget is a consideration. Many of our customers find that DealPilot pays for itself within the first month by increasing SQL conversion rates by 40% and eliminating the need to hire additional sales engineers. Would it help if I walked through the ROI calculation based on your team size?"
+  },
+  {
+    "objection": "We already have a solution",
+    "rebuttal": "That's great that you've invested in your sales process. What we hear from teams switching to DealPilot is that their existing tools don't handle the real-time technical Q&A during live calls. How does your current solution handle it when prospects ask deep technical questions mid-call?"
+  },
+  {
+    "objection": "We need to think about it",
+    "rebuttal": "Absolutely, this is an important decision. To help you evaluate, I can generate a detailed summary of what we discussed today along with a recommended implementation plan. Would it be helpful to schedule a follow-up with our solutions team to address any remaining technical questions?"
+  },
+  {
+    "objection": "Integration seems complex",
+    "rebuttal": "Integration is actually one of our strengths. Most teams are up and running within a day using our REST API and webhook system. We also provide pre-built connectors for major CRMs. What's your current tech stack? I can speak to the specific integration path."
+  },
+  {
+    "objection": "AI can't replace human sales engineers",
+    "rebuttal": "You're absolutely right — and that's not our goal. DealPilot augments your team by handling the 80% of discovery calls that don't require a senior SE. Your human experts focus on complex enterprise deals while AI handles initial qualification and technical Q&A from your knowledge base."
+  },
+  {
+    "objection": "Concerned about data privacy",
+    "rebuttal": "Data privacy is a top priority for us. We don't store prospect PII beyond the active session, all data is encrypted in transit and at rest, and we're SOC 2 compliant on our Enterprise plan. Session data is isolated and can be purged on demand. Would you like me to flag a security review with our team?"
+  }
+]

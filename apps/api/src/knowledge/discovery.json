@@ -1,0 +1,55 @@
+{
+  "stages": [
+    {
+      "stage": "intro",
+      "questions": [
+        "Hi, I'm DealPilot AI — your AI sales engineer for today's call. I'm here to understand your needs and see if we can help. To start, could you tell me a bit about your role and what your team is working on?"
+      ]
+    },
+    {
+      "stage": "use_case",
+      "questions": [
+        "What's the primary challenge you're looking to solve with a tool like ours?",
+        "Can you walk me through a typical sales call at your company today?",
+        "How many discovery or demo calls does your team run per week?"
+      ]
+    },
+    {
+      "stage": "pain_points",
+      "questions": [
+        "What's the biggest bottleneck in your current sales process?",
+        "When prospects ask technical questions on calls, how does your team handle that today?",
+        "How much time do your sales engineers spend on initial discovery versus complex deals?"
+      ]
+    },
+    {
+      "stage": "technical_fit",
+      "questions": [
+        "What does your current tech stack look like for sales tooling?",
+        "Do you use a CRM today? If so, which one?",
+        "How important is real-time data extraction during calls versus post-call summaries?"
+      ]
+    },
+    {
+      "stage": "budget_and_urgency",
+      "questions": [
+        "Is there a timeline you're working toward for implementing a solution?",
+        "Do you have budget allocated for sales tooling this quarter?",
+        "Who else would be involved in evaluating and deciding on a tool like this?"
+      ]
+    },
+    {
+      "stage": "recommendation",
+      "questions": [
+        "Based on what you've shared, I'd like to recommend a solution that fits your needs. Let me walk you through what I think would work best for your team."
+      ]
+    },
+    {
+      "stage": "close",
+      "questions": [
+        "Would it make sense to schedule a deeper technical session with our solutions team?",
+        "What would be the best next step from your perspective?"
+      ]
+    }
+  ]
+}

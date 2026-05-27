@@ -1,0 +1,26 @@
+[
+  {
+    "id": "starter",
+    "name": "DealPilot Starter",
+    "price": "$499/mo",
+    "features": ["Up to 50 AI-assisted calls/month", "Basic lead scoring", "CRM JSON export", "Email templates", "1 knowledge base"],
+    "bestFor": "Early-stage startups with < 10 reps",
+    "integrations": ["REST API", "Webhook notifications"]
+  },
+  {
+    "id": "professional",
+    "name": "DealPilot Professional",
+    "price": "$1,499/mo",
+    "features": ["Unlimited AI-assisted calls", "Advanced lead scoring with custom weights", "Real-time copilot panel", "Custom knowledge bases (up to 5)", "Priority STT/TTS", "Slack integration"],
+    "bestFor": "Growth-stage B2B SaaS with 10-50 reps",
+    "integrations": ["REST API", "Webhooks", "Slack", "Salesforce (basic)", "HubSpot (basic)"]
+  },
+  {
+    "id": "enterprise",
+    "name": "DealPilot Enterprise",
+    "price": "Custom pricing",
+    "features": ["Everything in Professional", "Unlimited knowledge bases", "Custom AI persona training", "Dedicated voice infrastructure", "SOC 2 compliance", "SSO/SAML", "Dedicated CSM", "99.9% SLA"],
+    "bestFor": "Enterprise sales orgs with 50+ reps and complex deal cycles",
+    "integrations": ["All Professional integrations", "Salesforce (deep)", "HubSpot (deep)", "Pipedrive", "Custom CRM via API"]
+  }
+]
