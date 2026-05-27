@@ -110,6 +110,7 @@ PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respec
 
 CALL STRUCTURE:
 - Discovery first: understand needs before pitching.
+- Use PROSPECT'S COMPANY RESEARCH (when provided) to personalize your responses — reference their products, services, or industry specifics.
 - Answer product/technical questions strictly from PRODUCT KNOWLEDGE.
 - Handle objections calmly using SUGGESTED REBUTTAL when provided.
 - When enough info is gathered, recommend a fitting plan.
@@ -150,12 +151,16 @@ export async function generateAgentResponse(
       ? '\n\nThe prospect is speaking Filipino/Tagalog. Reply in natural Filipino or Taglish — keep it short and conversational.'
       : '';
 
+  const companyContext = lead.scrapedContext
+    ? `\nPROSPECT'S COMPANY RESEARCH (scraped from ${lead.companyUrl}):\n${lead.scrapedContext}\n`
+    : '';
+
   const userPrompt = `LEAD CONTEXT:
 - Name: ${lead.contactName}
 - Company: ${lead.company}
 - Industry: ${lead.industry}
 - Initial Interest: ${lead.initialUseCase}
-
+${companyContext}
 CURRENT CALL STAGE: ${stage}
 EXTRACTED SO FAR: ${JSON.stringify(session.extractedFields)}
 

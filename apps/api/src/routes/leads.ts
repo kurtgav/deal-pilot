@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import type { Lead, LeadStatus } from '@dealpilot/shared';
 import { db } from '../db/schema.js';
+import { scrapeCompanyUrl } from '../services/WebScraper.js';
 
 export const leadsRouter = Router();
 
@@ -9,17 +10,31 @@ leadsRouter.get('/', (_req, res) => {
   res.json(db.leads);
 });
 
-leadsRouter.post('/', (req, res) => {
-  const { contactName, company, industry, initialUseCase } = req.body;
+leadsRouter.post('/', async (req, res) => {
+  const { contactName, company, companyUrl, industry, initialUseCase } = req.body;
   const lead: Lead = {
     id: uuid(),
     contactName,
-    company,
+    company: company || '',
+    companyUrl,
     industry,
     initialUseCase,
     status: 'new',
     createdAt: new Date().toISOString(),
   };
+
+  // Scrape company URL in background — don't block lead creation
+  if (companyUrl) {
+    scrapeCompanyUrl(companyUrl).then((context) => {
+      lead.scrapedContext = context;
+      // Extract company name from scraped content if not provided
+      if (!lead.company) {
+        const nameMatch = context.match(/^Company:\s*(.+)/m);
+        if (nameMatch) lead.company = nameMatch[1].split('|')[0].split('-')[0].trim();
+      }
+    }).catch(() => {});
+  }
+
   db.leads.push(lead);
   res.status(201).json(lead);
 });
