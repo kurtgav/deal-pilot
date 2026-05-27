@@ -24,13 +24,13 @@ export default function Handoff() {
 
   if (error && !handoff) {
     return (
-      <div className="min-h-screen bg-[var(--color-surface-alt)] flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
-            <span className="text-xl">⚠️</span>
+      <div className="app-bg app-surface flex min-h-screen items-center justify-center p-4">
+        <div className="app-card max-w-md p-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
           </div>
           <p className="text-[var(--color-muted)] mb-4">{error}</p>
-          <button onClick={() => navigate('/app')} className="px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--color-accent-light)]">
+          <button onClick={() => navigate('/app')} className="app-button-primary px-4 py-2 text-sm">
             Back to Dashboard
           </button>
         </div>
@@ -40,7 +40,7 @@ export default function Handoff() {
 
   if (!handoff) {
     return (
-      <div className="min-h-screen bg-[var(--color-surface-alt)] flex items-center justify-center">
+      <div className="app-bg app-surface flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-[var(--color-primary)] font-medium">Generating handoff...</p>
@@ -51,11 +51,11 @@ export default function Handoff() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-alt)]">
-      <header className="bg-white border-b border-[var(--color-border)] px-8 py-5">
+    <div className="app-bg app-surface min-h-screen">
+      <header className="sticky top-0 z-20 border-b border-white/70 bg-white/72 px-4 py-5 backdrop-blur-xl sm:px-8">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/" aria-label="Go to landing page" className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
+            <Link to="/" aria-label="Go to landing page" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-200">
               <span className="text-white text-sm font-bold">D</span>
             </Link>
             <div>
@@ -63,14 +63,14 @@ export default function Handoff() {
               {lead && <p className="text-xs text-[var(--color-muted)]">{lead.contactName} · {lead.company}</p>}
             </div>
           </div>
-          <button onClick={() => navigate('/app')} className="text-sm text-[var(--color-accent)] hover:underline">
-            ← Back to Dashboard
+          <button onClick={() => navigate('/app')} className="app-button-secondary px-4 py-2 text-sm">
+            Back to Dashboard
           </button>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-[var(--color-border)]">
+      <div className="border-b border-white/70 bg-white/60 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-8 flex gap-6">
           <button
             onClick={() => setTab('handoff')}
@@ -87,10 +87,10 @@ export default function Handoff() {
         </div>
       </div>
 
-      <main className="max-w-5xl mx-auto px-8 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
         {tab === 'handoff' && <HandoffExport handoff={handoff} lead={lead} />}
         {tab === 'transcript' && session && (
-          <div className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+          <div className="app-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Call Transcript</h3>
               <span className="text-xs text-[var(--color-muted)]">{session.transcript.length} messages</span>

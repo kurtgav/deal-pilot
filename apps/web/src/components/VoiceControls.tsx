@@ -20,26 +20,26 @@ export default function VoiceControls({ muted, micMuted, joined, onMute, onUnmut
   };
 
   return (
-    <div className="border-t border-[var(--color-border)] p-4 space-y-3">
+    <div className="space-y-3 border-t border-[var(--color-border)] bg-white/70 p-4">
       {/* Controls row */}
       <div className="flex items-center gap-2">
         <button
           onClick={muted ? onUnmute : onMute}
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+          className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
             muted ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-[var(--color-surface-alt)] text-[var(--color-muted)] border border-[var(--color-border)]'
           }`}
         >
-          {muted ? '🤖 AI Muted' : '🤖 AI Active'}
+          {muted ? 'AI Muted' : 'AI Active'}
         </button>
 
         {joined && (
           <button
             onClick={onToggleMic}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               micMuted ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-green-50 text-green-700 border border-green-200'
             }`}
           >
-            {micMuted ? '🎙️ Mic Off' : '🎙️ Mic On'}
+            {micMuted ? 'Mic Off' : 'Mic On'}
           </button>
         )}
 
@@ -58,12 +58,13 @@ export default function VoiceControls({ muted, micMuted, joined, onMute, onUnmut
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           placeholder={joined ? 'Type to simulate (mic is live)...' : 'Simulate prospect speech...'}
-          className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-opacity-20"
+          className="app-input flex-1 px-3 py-2 text-sm"
         />
-        <button onClick={handleSend} className="px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--color-accent-light)] transition-colors">
+        <button onClick={handleSend} className="app-button-primary px-4 py-2 text-sm">
           Send
         </button>
       </div>
     </div>
   );
 }
+

@@ -9,7 +9,7 @@ import Transcript from '../components/Transcript';
 import CopilotPanel from '../components/CopilotPanel';
 import LeadScoreGauge from '../components/LeadScoreGauge';
 
-// When AI is muted, no TTS plays so there's no `speaking → false` transition to
+// When AI is muted, no TTS plays so there is no speaking-to-idle transition to
 // trigger the next listen. After we send a turn we instead schedule a resume.
 const MUTED_RESUME_DELAY_MS = 600;
 // Tiny delay after AI's TTS ends before re-opening the mic, so the speaker tail
@@ -62,7 +62,7 @@ export default function CallRoom() {
     mode: 'continuous',
   });
 
-  // Socket: agent:response → speak (loop closes via the speaking-end useEffect)
+  // Socket agent responses are spoken, then the loop closes via the speaking-end effect.
   const { sendTranscript, muteAgent, unmuteAgent } = useSocket(sessionId!, (aiText) => {
     speak(aiText);
   });
@@ -165,15 +165,15 @@ export default function CallRoom() {
         : { label: 'Processing…', dot: 'bg-amber-500', text: 'text-amber-600' };
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-alt)] flex flex-col">
+    <div className="app-bg app-surface flex min-h-screen flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-[var(--color-border)] px-6 py-4">
+      <header className="sticky top-0 z-20 border-b border-white/70 bg-white/72 px-4 py-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               to="/"
               aria-label="Go to landing page"
-              className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-200"
             >
               <span className="text-white text-sm font-bold">D</span>
             </Link>
@@ -190,7 +190,7 @@ export default function CallRoom() {
             </div>
             <button
               onClick={endCall}
-              className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+              className="app-button-danger px-4 py-2 text-sm"
             >
               End Call
             </button>
@@ -200,14 +200,14 @@ export default function CallRoom() {
 
       {error && (
         <div className="bg-red-50 border-b border-red-200 px-6 py-3 text-sm text-red-700">
-          ⚠ {error} <button onClick={() => setError(null)} className="ml-2 underline">Dismiss</button>
+          Alert: {error} <button onClick={() => setError(null)} className="ml-2 underline">Dismiss</button>
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-12 gap-0 overflow-hidden" style={{ height: 'calc(100vh - 73px)' }}>
+      <div className="grid flex-1 gap-4 overflow-auto p-4 lg:grid-cols-12" style={{ minHeight: 'calc(100vh - 73px)' }}>
         {/* Transcript + Voice */}
-        <div className="col-span-5 border-r border-[var(--color-border)] flex flex-col bg-white">
-          <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
+        <div className="app-card col-span-5 flex min-h-[560px] flex-col overflow-hidden">
+          <div className="app-panel-header flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Live Transcript</h2>
             <span className={`text-xs flex items-center gap-1.5 ${loopStatus.text}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${loopStatus.dot} ${convoActive ? 'animate-pulse-dot' : ''}`}></span>
@@ -217,16 +217,16 @@ export default function CallRoom() {
           <Transcript lines={transcript} />
 
           {/* Controls */}
-          <div className="border-t border-[var(--color-border)] p-4 space-y-3">
+          <div className="space-y-3 border-t border-[var(--color-border)] bg-white/70 p-4">
             {interim && (
-              <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 italic">
-                🎤 {interim}
+              <div className="rounded-2xl border border-green-200 bg-green-50/80 px-3 py-2 text-sm italic text-green-800">
+                Live input: {interim}
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={convoActive ? stopConversation : startConversation}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                   convoActive
                     ? 'bg-red-500 text-white shadow-lg shadow-red-200 hover:bg-red-600'
                     : 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-light)]'
@@ -234,26 +234,26 @@ export default function CallRoom() {
                 title={
                   convoActive
                     ? 'Stop the conversation loop'
-                    : 'Start the closed conversation loop — mic auto-cycles between turns'
+                    : 'Start the closed conversation loop - mic auto-cycles between turns'
                 }
               >
-                {convoActive ? '⏹ Stop Conversation' : '🎙️ Start Conversation'}
+                {convoActive ? 'Stop Conversation' : 'Start Conversation'}
               </button>
 
               <button
                 onClick={muted ? () => unmuteAgent(sessionId!) : () => muteAgent(sessionId!)}
-                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                className={`rounded-full px-3 py-2 text-xs font-medium transition-colors ${
                   muted
                     ? 'bg-red-50 text-red-700 border border-red-200'
                     : 'bg-[var(--color-surface-alt)] text-[var(--color-muted)] border border-[var(--color-border)]'
                 }`}
               >
-                {muted ? '🤖 AI Muted' : '🤖 AI Active'}
+                {muted ? 'AI Muted' : 'AI Active'}
               </button>
 
               {/* AI speech rate selector */}
               <div
-                className="inline-flex items-center rounded-lg border border-[var(--color-border)] overflow-hidden"
+                className="inline-flex items-center overflow-hidden rounded-full border border-[var(--color-border)] bg-white"
                 role="group"
                 aria-label="AI speech rate"
               >
@@ -288,11 +288,11 @@ export default function CallRoom() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleTextSend()}
                 placeholder="Or type here..."
-                className="flex-1 px-3 py-2 text-sm border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-opacity-20"
+                className="app-input flex-1 px-3 py-2 text-sm"
               />
               <button
                 onClick={handleTextSend}
-                className="px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--color-accent-light)] transition-colors"
+                className="app-button-primary px-4 py-2 text-sm"
               >
                 Send
               </button>
@@ -301,23 +301,23 @@ export default function CallRoom() {
         </div>
 
         {/* Copilot Panel */}
-        <div className="col-span-4 border-r border-[var(--color-border)] flex flex-col bg-white">
-          <div className="px-5 py-4 border-b border-[var(--color-border)]">
+        <div className="app-card col-span-4 flex min-h-[520px] flex-col overflow-hidden">
+          <div className="app-panel-header px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Sales Copilot</h2>
           </div>
           <CopilotPanel fields={fields} />
         </div>
 
         {/* Score */}
-        <div className="col-span-3 flex flex-col bg-white">
-          <div className="px-5 py-4 border-b border-[var(--color-border)]">
+        <div className="app-card col-span-3 flex min-h-[520px] flex-col overflow-hidden">
+          <div className="app-panel-header px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Lead Score</h2>
           </div>
           <div className="flex-1 p-5 flex flex-col items-center justify-start gap-6 pt-10">
             <LeadScoreGauge score={score} />
             {lead && (
               <div className="w-full space-y-3 mt-4">
-                <div className="p-3 rounded-lg bg-[var(--color-surface-alt)]">
+                <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm">
                   <p className="text-xs text-[var(--color-muted)] mb-1">Initial Hypothesis</p>
                   <p className="text-sm">{lead.initialUseCase}</p>
                 </div>
@@ -329,3 +329,4 @@ export default function CallRoom() {
     </div>
   );
 }
+

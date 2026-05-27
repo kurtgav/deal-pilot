@@ -3,7 +3,7 @@ import type { ExtractedSalesFields } from '@dealpilot/shared';
 function FieldRow({ label, value }: { label: string; value?: string | string[] }) {
   const display = Array.isArray(value) ? value.join(', ') : value;
   return (
-    <div className={`py-2.5 border-b border-[var(--color-border)] last:border-0 ${display ? 'animate-field-flash' : ''}`}>
+    <div className={`rounded-2xl border border-transparent px-3 py-2.5 last:border-0 ${display ? 'animate-field-flash bg-white/60' : ''}`}>
       <p className="text-xs text-[var(--color-muted)] uppercase tracking-wider">{label}</p>
       <p className="text-sm mt-0.5 font-medium">{display || <span className="text-slate-300">—</span>}</p>
     </div>
@@ -24,7 +24,7 @@ function SignalBadge({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-xs text-[var(--color-muted)]">{label}</span>
-      <span className={`px-2 py-0.5 text-xs font-medium rounded border ${style}`}>{value || 'Unknown'}</span>
+      <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${style}`}>{value || 'Unknown'}</span>
     </div>
   );
 }
@@ -40,7 +40,7 @@ export default function CopilotPanel({ fields }: { fields: ExtractedSalesFields 
         <FieldRow label="Next Step" value={fields.nextStep} />
       </div>
 
-      <div className="mt-6 p-3 rounded-lg bg-[var(--color-surface-alt)]">
+      <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm">
         <p className="text-xs font-semibold text-[var(--color-muted)] mb-2 uppercase tracking-wider">Signals</p>
         <SignalBadge label="Budget" value={fields.budgetSignal} />
         <SignalBadge label="Urgency" value={fields.urgency} />
@@ -48,13 +48,14 @@ export default function CopilotPanel({ fields }: { fields: ExtractedSalesFields 
       </div>
 
       {fields.objections.length > 0 && (
-        <div className="mt-6 p-3 rounded-lg bg-red-50 border border-red-100">
-          <p className="text-xs font-semibold text-red-700 mb-2 uppercase tracking-wider">⚠ Objections</p>
+        <div className="mt-6 rounded-2xl border border-red-100 bg-red-50/80 p-3">
+          <p className="text-xs font-semibold text-red-700 mb-2 uppercase tracking-wider">Objections</p>
           {fields.objections.map((o, i) => (
-            <p key={i} className="text-sm text-red-800 mt-1">• {o}</p>
+            <p key={i} className="text-sm text-red-800 mt-1">{o}</p>
           ))}
         </div>
       )}
     </div>
   );
 }
+

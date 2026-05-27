@@ -4,6 +4,7 @@ import type { Lead } from '@dealpilot/shared';
 import { api } from '../lib/api';
 
 type Screen = 'dashboard' | 'lead-detail' | 'active-call' | 'leads' | 'handoffs' | 'knowledge-base' | 'settings' | 'new-lead';
+type IconName = 'dashboard' | 'users' | 'handoff' | 'database' | 'settings' | 'plus' | 'check' | 'phone' | 'spark' | 'shield' | 'alert' | 'arrowLeft';
 
 const fallbackLeads: Lead[] = [
   {
@@ -113,6 +114,29 @@ function metaFor(lead: Lead) {
   };
 }
 
+function Icon({ name, className = 'h-4 w-4' }: { name: IconName; className?: string }) {
+  const paths: Record<IconName, ReactNode> = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    handoff: <><path d="M7 11l5-5 5 5" /><path d="M12 6v12" /><path d="M19 15l-7 7-7-7" /></>,
+    database: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" /><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" /></>,
+    settings: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" /><circle cx="12" cy="12" r="3" /></>,
+    plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
+    check: <path d="M20 6 9 17l-5-5" />,
+    phone: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.63a2 2 0 0 1-.45 2.11L8 9.72a16 16 0 0 0 6.28 6.28l1.26-1.26a2 2 0 0 1 2.11-.45c.85.28 1.73.48 2.63.6A2 2 0 0 1 22 16.92Z" />,
+    spark: <><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" /></>,
+    shield: <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8Z" />,
+    alert: <><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></>,
+    arrowLeft: <><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>,
+  };
+
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('dashboard');
@@ -164,18 +188,19 @@ export default function Dashboard() {
   }[screen];
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-alt)] text-[var(--color-primary)]">
+    <div className="app-bg app-surface min-h-screen text-[var(--color-primary)]">
       <div className="flex min-h-screen">
         <Sidebar active={screen} onNavigate={(next) => navigateScreen(next)} />
         <div className="min-w-0 flex-1">
           <Topbar title={title} onNewLead={() => navigateScreen('new-lead')} />
+          <MobileNav active={screen} onNavigate={navigateScreen} />
           {error && (
             <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-800">
               {error}
               <button className="ml-3 font-medium underline" onClick={() => setError(null)}>Dismiss</button>
             </div>
           )}
-          <main className="p-6">
+          <main className="px-4 py-5 sm:px-6 lg:px-8">
             {loading ? (
               <LoadingState />
             ) : (
@@ -219,45 +244,45 @@ export default function Dashboard() {
 }
 
 function Sidebar({ active, onNavigate }: { active: Screen; onNavigate: (screen: Screen) => void }) {
-  const items: Array<{ id: Screen; label: string; icon: string }> = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'D' },
-    { id: 'leads', label: 'Leads', icon: 'L' },
-    { id: 'handoffs', label: 'Handoffs', icon: 'H' },
-    { id: 'knowledge-base', label: 'Knowledge Base', icon: 'K' },
-    { id: 'settings', label: 'Settings', icon: 'S' },
+  const items: Array<{ id: Screen; label: string; icon: IconName }> = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'leads', label: 'Leads', icon: 'users' },
+    { id: 'handoffs', label: 'Handoffs', icon: 'handoff' },
+    { id: 'knowledge-base', label: 'Knowledge Base', icon: 'database' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[var(--color-border)] bg-white lg:flex">
-      <div className="border-b border-[var(--color-border)] p-6">
+    <aside className="app-glass sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-y-0 border-l-0 lg:flex">
+      <div className="border-b border-white/70 p-6">
         <Link to="/" aria-label="Go to landing page" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-accent)] text-sm font-bold text-white">DP</div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-sm font-bold text-white shadow-lg shadow-indigo-200">DP</div>
           <div>
-            <h1 className="text-lg font-semibold">DealPilot AI</h1>
+            <h1 className="text-lg font-semibold tracking-tight">DealPilot AI</h1>
             <p className="text-xs text-[var(--color-muted)]">Voice Sales Engineer</p>
           </div>
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1.5 p-4">
         {items.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => onNavigate(item.id)}
-            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-              active === item.id ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--color-muted)] hover:bg-slate-100 hover:text-[var(--color-primary)]'
+            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all ${
+              active === item.id ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-200' : 'text-[var(--color-muted)] hover:bg-white/80 hover:text-[var(--color-primary)]'
             }`}
           >
-            <span className={`flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold ${active === item.id ? 'bg-white/15' : 'bg-slate-100'}`}>
-              {item.icon}
+            <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${active === item.id ? 'bg-white/15' : 'app-icon-box'}`}>
+              <Icon name={item.icon} className="h-4 w-4" />
             </span>
             {item.label}
           </button>
         ))}
       </nav>
-      <div className="border-t border-[var(--color-border)] p-4">
-        <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)] text-xs font-semibold text-white">JD</div>
+      <div className="border-t border-white/70 p-4">
+        <div className="app-card flex items-center gap-3 rounded-2xl p-3 shadow-none">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-xs font-semibold text-white">JD</div>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">John Doe</p>
             <p className="truncate text-xs text-[var(--color-muted)]">Sales Rep</p>
@@ -270,21 +295,49 @@ function Sidebar({ active, onNavigate }: { active: Screen; onNavigate: (screen: 
 
 function Topbar({ title, onNewLead }: { title: string; onNewLead: () => void }) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-white px-4 sm:px-6">
+    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-white/70 bg-white/72 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
-        <h2 className="truncate text-xl font-semibold">{title}</h2>
+        <h2 className="truncate text-xl font-semibold tracking-tight">{title}</h2>
         <Badge tone="neutral">DEMO MODE</Badge>
       </div>
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 md:flex">
+        <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-xs font-medium text-emerald-700 shadow-sm md:flex">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           Voice engine ready
         </div>
-        <button onClick={onNewLead} className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-light)]">
+        <button onClick={onNewLead} className="app-button-primary px-3.5 py-2 text-sm">
+          <Icon name="plus" className="h-4 w-4" />
           New Lead
         </button>
       </div>
     </header>
+  );
+}
+
+function MobileNav({ active, onNavigate }: { active: Screen; onNavigate: (screen: Screen) => void }) {
+  const items: Array<{ id: Screen; label: string; icon: IconName }> = [
+    { id: 'dashboard', label: 'Home', icon: 'dashboard' },
+    { id: 'leads', label: 'Leads', icon: 'users' },
+    { id: 'handoffs', label: 'Handoffs', icon: 'handoff' },
+    { id: 'knowledge-base', label: 'Knowledge', icon: 'database' },
+  ];
+
+  return (
+    <nav className="sticky top-16 z-10 flex gap-2 overflow-x-auto border-b border-white/70 bg-white/70 px-4 py-2 backdrop-blur-xl lg:hidden">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onNavigate(item.id)}
+          className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all ${
+            active === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'border border-slate-200 bg-white/80 text-slate-600'
+          }`}
+        >
+          <Icon name={item.icon} className="h-3.5 w-3.5" />
+          {item.label}
+        </button>
+      ))}
+    </nav>
   );
 }
 
@@ -296,6 +349,26 @@ function DashboardScreen({ leads, onNavigate }: { leads: Lead[]; onNavigate: (sc
 
   return (
     <div className="space-y-6">
+      <section className="app-card overflow-hidden p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div className="max-w-2xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+              AI sales engineering workspace
+            </div>
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+              Prioritize technical buyers and move clean handoffs faster.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[var(--color-muted)] sm:text-base">
+              DealPilot keeps every discovery call grounded in approved knowledge, qualification signals, and next-step handoff context.
+            </p>
+          </div>
+          <div className="grid min-w-[220px] grid-cols-2 gap-3">
+            <MiniStat label="Grounded answers" value="100%" />
+            <MiniStat label="Human follow-up" value="Flagged" />
+          </div>
+        </div>
+      </section>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metric label="New Leads" value={newLeads} detail="+3 today" accent="indigo" />
         <Metric label="In Call" value={inCall} detail={inCall ? 'Live now' : 'No active calls'} accent="sky" />
@@ -333,13 +406,16 @@ function LeadsScreen({
           <h2 className="text-2xl font-semibold">Leads</h2>
           <p className="mt-1 text-sm text-[var(--color-muted)]">Manage prospects before and after AI-assisted discovery calls.</p>
         </div>
-        <button onClick={() => onNavigate('new-lead')} className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">New Lead</button>
+        <button onClick={() => onNavigate('new-lead')} className="app-button-primary px-4 py-2 text-sm">
+          <Icon name="plus" className="h-4 w-4" />
+          New Lead
+        </button>
       </div>
-      <div className="rounded-xl border border-[var(--color-border)] bg-white p-4">
+      <div className="app-card p-4">
         <div className="flex flex-wrap gap-3">
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="h-10 min-w-64 flex-1 rounded-lg border border-[var(--color-border)] px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." className="app-input h-10 min-w-64 flex-1 px-3 text-sm" />
           {['All Statuses', 'All Industries', 'Any score', 'Last call'].map((label) => (
-            <select key={label} className="h-10 rounded-lg border border-[var(--color-border)] bg-white px-3 text-sm text-[var(--color-muted)]">
+            <select key={label} className="app-input h-10 px-3 text-sm text-[var(--color-muted)]">
               <option>{label}</option>
             </select>
           ))}
@@ -365,7 +441,10 @@ function LeadDetailScreen({ lead, onBack, onStartCall }: { lead: Lead; onBack: (
           <h2 className="text-2xl font-semibold">{lead.company}</h2>
           <p className="mt-1 text-sm text-[var(--color-muted)]">Pre-Call Setup</p>
         </div>
-        <button onClick={onBack} className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm">Back to Dashboard</button>
+        <button onClick={onBack} className="app-button-secondary px-3 py-2 text-sm">
+          <Icon name="arrowLeft" className="h-4 w-4" />
+          Back to Dashboard
+        </button>
       </div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
@@ -391,7 +470,7 @@ function LeadDetailScreen({ lead, onBack, onStartCall }: { lead: Lead; onBack: (
             <div className="grid gap-3 sm:grid-cols-2">
               {['Lead profile complete', 'Pre-call hypothesis documented', 'Knowledge base synced', 'Voice engine ready'].map((item) => (
                 <div key={item} className="flex items-center gap-2 text-sm">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">✓</span>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Icon name="check" className="h-3.5 w-3.5" /></span>
                   {item}
                 </div>
               ))}
@@ -399,8 +478,8 @@ function LeadDetailScreen({ lead, onBack, onStartCall }: { lead: Lead; onBack: (
           </Card>
         </div>
         <div className="space-y-6">
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-            <h3 className="flex items-center gap-2 text-base font-semibold">AI Setup</h3>
+          <div className="app-card p-5">
+            <h3 className="flex items-center gap-2 text-base font-semibold"><span className="app-icon-box h-9 w-9 rounded-xl"><Icon name="spark" /></span> AI Setup</h3>
             <div className="mt-4 space-y-4 text-sm">
               <SetupRow label="AI Persona" value="DealPilot AI" />
               <SetupRow label="Voice Status" value="Ready" tone="success" />
@@ -408,15 +487,15 @@ function LeadDetailScreen({ lead, onBack, onStartCall }: { lead: Lead; onBack: (
               <div className="border-t border-indigo-200 pt-4 text-xs text-[var(--color-muted)]">
                 AI will only answer from curated knowledge base content.
               </div>
-              <button onClick={() => onStartCall(lead.id)} className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white">Start Voice Sales Call</button>
-              <button className="w-full rounded-lg border border-[var(--color-border)] bg-white px-4 py-2.5 text-sm font-medium">Test AI Voice</button>
-              <button className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-[var(--color-muted)]">View Demo Scenario</button>
+              <button onClick={() => onStartCall(lead.id)} className="app-button-primary w-full px-4 py-2.5 text-sm"><Icon name="phone" className="h-4 w-4" />Start Voice Sales Call</button>
+              <button className="app-button-secondary w-full px-4 py-2.5 text-sm">Test AI Voice</button>
+              <button className="app-button-ghost w-full px-4 py-2.5 text-sm">View Demo Scenario</button>
             </div>
           </div>
           <Card title="AI Guardrails">
             <div className="space-y-3 text-xs text-[var(--color-muted)]">
               {['No fabrication: only knowledge base answers', 'Escalates unknown questions to human', 'No pricing or SLA commitments', 'Rep can mute, pause, or end anytime'].map((item) => (
-                <div key={item} className="flex gap-2"><span className="text-emerald-600">✓</span>{item}</div>
+                <div key={item} className="flex gap-2"><Icon name="check" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />{item}</div>
               ))}
             </div>
           </Card>
@@ -438,7 +517,7 @@ function ActiveCallScreen({ lead, onEnd }: { lead: Lead; onEnd: () => void }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-white px-5 py-4">
+      <div className="app-card flex flex-wrap items-center justify-between gap-4 px-5 py-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse-dot" />
@@ -448,12 +527,12 @@ function ActiveCallScreen({ lead, onEnd }: { lead: Lead; onEnd: () => void }) {
           <h2 className="mt-1 text-lg font-semibold">{lead.contactName} · {lead.company}</h2>
           <p className="text-sm text-[var(--color-muted)]">{lead.industry || 'Industry unknown'} · {meta.title}</p>
         </div>
-        <button onClick={onEnd} className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">End Call</button>
+        <button onClick={onEnd} className="app-button-danger px-4 py-2 text-sm">End Call</button>
       </div>
 
       <div className="grid min-h-[calc(100vh-190px)] gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)_320px]">
-        <section className="flex min-h-[560px] flex-col rounded-xl border border-[var(--color-border)] bg-white">
-          <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <section className="app-card flex min-h-[560px] flex-col overflow-hidden">
+          <div className="app-panel-header px-5 py-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-muted)]">Live Transcript</h3>
           </div>
           <div className="flex-1 space-y-4 overflow-auto p-5">
@@ -472,17 +551,17 @@ function ActiveCallScreen({ lead, onEnd }: { lead: Lead; onEnd: () => void }) {
               </div>
             ))}
           </div>
-          <div className="border-t border-[var(--color-border)] p-4">
+          <div className="border-t border-[var(--color-border)] bg-white/70 p-4">
             <div className="flex gap-2">
-              <button className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">AI Active</button>
-              <button className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium">Mute Agent</button>
-              <input placeholder="Type a message or note..." className="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" />
+              <button className="app-button-primary px-4 py-2 text-sm">AI Active</button>
+              <button className="app-button-secondary px-4 py-2 text-sm">Mute Agent</button>
+              <input placeholder="Type a message or note..." className="app-input min-w-0 flex-1 px-3 text-sm" />
             </div>
           </div>
         </section>
 
-        <section className="rounded-xl border border-[var(--color-border)] bg-white">
-          <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <section className="app-card overflow-hidden">
+          <div className="app-panel-header px-5 py-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-muted)]">Sales Copilot</h3>
           </div>
           <div className="space-y-5 p-5">
@@ -495,19 +574,19 @@ function ActiveCallScreen({ lead, onEnd }: { lead: Lead; onEnd: () => void }) {
               <p className="mb-2 text-sm font-medium">Pain Points</p>
               <div className="space-y-2">
                 {['Manual qualification workload', 'Implementation timeline uncertainty', 'Need for grounded product answers'].map((item) => (
-                  <div key={item} className="rounded-lg bg-slate-50 p-3 text-sm">{item}</div>
+                  <div key={item} className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 text-sm shadow-sm">{item}</div>
                 ))}
               </div>
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3">
               <p className="text-xs font-medium text-amber-700">Flagged question</p>
               <p className="mt-1 text-sm">Implementation timeline needs a human sales engineer follow-up.</p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-xl border border-[var(--color-border)] bg-white">
-          <div className="border-b border-[var(--color-border)] px-5 py-4">
+        <section className="app-card overflow-hidden">
+          <div className="app-panel-header px-5 py-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-muted)]">Lead Score</h3>
           </div>
           <div className="flex flex-col items-center gap-6 p-6">
@@ -552,8 +631,8 @@ function NewLeadScreen({ onCancel, onCreated, onError }: { onCancel: () => void;
           <Field label="Initial Use Case" value={form.initialUseCase} onChange={(value) => setForm({ ...form, initialUseCase: value })} />
         </div>
         <div className="flex gap-3">
-          <button disabled={saving} className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? 'Creating...' : 'Create Lead'}</button>
-          <button type="button" onClick={onCancel} className="rounded-lg px-4 py-2 text-sm text-[var(--color-muted)]">Cancel</button>
+          <button disabled={saving} className="app-button-primary px-4 py-2 text-sm disabled:opacity-60">{saving ? 'Creating...' : 'Create Lead'}</button>
+          <button type="button" onClick={onCancel} className="app-button-ghost px-4 py-2 text-sm">Cancel</button>
         </div>
       </form>
     </Card>
@@ -573,7 +652,7 @@ function HandoffsScreen({ leads, onNavigate }: { leads: Lead[]; onNavigate: (scr
         {(completed.length ? completed : leads.slice(0, 3)).map((lead) => {
           const meta = metaFor(lead);
           return (
-            <div key={lead.id} className="rounded-xl border border-[var(--color-border)] bg-white p-5">
+            <div key={lead.id} className="app-card app-card-hover p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -582,7 +661,7 @@ function HandoffsScreen({ leads, onNavigate }: { leads: Lead[]; onNavigate: (scr
                   </div>
                   <p className="mt-1 text-sm text-[var(--color-muted)]">{lead.contactName} · {lead.initialUseCase}</p>
                 </div>
-                <button onClick={() => onNavigate('lead-detail', lead.id)} className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm">Open Lead</button>
+                <button onClick={() => onNavigate('lead-detail', lead.id)} className="app-button-secondary px-3 py-2 text-sm">Open Lead</button>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-4">
                 <MiniStat label="Score" value={`${meta.score}/100`} />
@@ -614,7 +693,7 @@ function KnowledgeBaseScreen() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {sources.map(([name, detail, status]) => (
-          <div key={name} className="rounded-xl border border-[var(--color-border)] bg-white p-5">
+          <div key={name} className="app-card app-card-hover p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="font-semibold">{name}</h3>
@@ -623,7 +702,7 @@ function KnowledgeBaseScreen() {
               <Badge tone={status === 'Synced' ? 'success' : 'warning'}>{status}</Badge>
             </div>
             <div className="mt-5 h-2 rounded-full bg-slate-100">
-              <div className="h-2 rounded-full bg-[var(--color-accent)]" style={{ width: status === 'Synced' ? '92%' : '64%' }} />
+              <div className="h-2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-500" style={{ width: status === 'Synced' ? '92%' : '64%' }} />
             </div>
           </div>
         ))}
@@ -631,7 +710,7 @@ function KnowledgeBaseScreen() {
       <Card title="Grounding Rules">
         <div className="grid gap-3 md:grid-cols-3">
           {['Answer only from approved content', 'Flag unknowns for human follow-up', 'Avoid binding pricing, SLA, or legal commitments'].map((rule) => (
-            <div key={rule} className="rounded-lg bg-slate-50 p-4 text-sm">{rule}</div>
+            <div key={rule} className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-sm shadow-sm">{rule}</div>
           ))}
         </div>
       </Card>
@@ -691,7 +770,7 @@ function LeadTable({
           {leads.map((lead) => {
             const meta = metaFor(lead);
             return (
-              <tr key={lead.id} onClick={() => (onPreview ? onPreview(lead.id) : onNavigate('lead-detail', lead.id))} className="cursor-pointer border-b border-[var(--color-border)] last:border-0 hover:bg-slate-50">
+              <tr key={lead.id} onClick={() => (onPreview ? onPreview(lead.id) : onNavigate('lead-detail', lead.id))} className="app-table-row cursor-pointer border-b border-[var(--color-border)] last:border-0">
                 <td className="py-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-sm font-semibold text-[var(--color-accent)]">{lead.contactName.charAt(0)}</div>
@@ -713,7 +792,7 @@ function LeadTable({
                       event.stopPropagation();
                       onStartCall ? onStartCall(lead.id) : onNavigate('lead-detail', lead.id);
                     }}
-                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--color-accent)] hover:bg-indigo-50"
+                    className="app-button-ghost px-3 py-1.5 text-sm"
                   >
                     {onStartCall ? 'Start' : 'Open'}
                   </button>
@@ -747,11 +826,11 @@ function LeadPreview({ lead, onNavigate }: { lead: Lead; onNavigate: (screen: Sc
           <p className="text-xs font-medium text-[var(--color-accent)]">AI Pre-call Hypothesis</p>
           <p className="mt-1 text-sm">{meta.hypothesis}</p>
         </div>
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/80 p-3">
           <p className="text-xs font-medium text-[var(--color-accent)]">Recommended next action</p>
           <p className="mt-1 text-sm">{lead.status === 'sql' ? 'Review post-call handoff' : 'Start AI-assisted discovery call'}</p>
         </div>
-        <button onClick={() => onNavigate('lead-detail', lead.id)} className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white">View Details</button>
+        <button onClick={() => onNavigate('lead-detail', lead.id)} className="app-button-primary w-full px-4 py-2 text-sm">View Details</button>
       </div>
     </Card>
   );
@@ -766,14 +845,14 @@ function Metric({ label, value, detail, accent }: { label: string; value: number
   }[accent];
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-white p-6">
+    <div className="app-card app-card-hover p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-[var(--color-muted)]">{label}</p>
           <h3 className="mt-2 text-3xl font-semibold">{value}</h3>
           <p className="mt-1 text-xs text-[var(--color-muted)]">{detail}</p>
         </div>
-        <div className={`h-10 w-10 rounded-lg ${color}`} />
+        <div className={`app-icon-box h-10 w-10 rounded-2xl ${color}`} />
       </div>
     </div>
   );
@@ -781,8 +860,8 @@ function Metric({ label, value, detail, accent }: { label: string; value: number
 
 function Card({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-[var(--color-border)] bg-white">
-      {title && <div className="border-b border-[var(--color-border)] px-6 py-4"><h3 className="font-semibold">{title}</h3></div>}
+    <section className="app-card overflow-hidden">
+      {title && <div className="app-panel-header px-6 py-4"><h3 className="font-semibold tracking-tight">{title}</h3></div>}
       <div className="p-6">{children}</div>
     </section>
   );
@@ -796,7 +875,7 @@ function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'ne
     danger: 'border-red-200 bg-red-50 text-red-700',
     live: 'border-red-200 bg-red-50 text-red-700',
   }[tone];
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm ${cls}`}>{children}</span>;
 }
 
 function StatusBadge({ status }: { status: Lead['status'] }) {
@@ -814,7 +893,7 @@ function Field({ label, value, onChange, required }: { label: string; value: str
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}{required && ' *'}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} required={required} className="mt-1 h-10 w-full rounded-lg border border-[var(--color-border)] px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" />
+      <input value={value} onChange={(event) => onChange(event.target.value)} required={required} className="app-input mt-1 h-10 w-full px-3 text-sm" />
     </label>
   );
 }
@@ -822,7 +901,7 @@ function Field({ label, value, onChange, required }: { label: string; value: str
 function ProfileItem({ label, value, initials }: { label: string; value: string; initials?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[var(--color-accent)]">{initials ?? label.charAt(0)}</div>
+      <div className="app-icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">{initials ?? label.charAt(0)}</div>
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{label}</p>
         <p className="truncate text-xs text-[var(--color-muted)]">{value}</p>
@@ -842,7 +921,7 @@ function SetupRow({ label, value, tone }: { label: string; value: string; tone?:
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-3">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="mt-0.5 text-sm font-medium">{value}</p>
     </div>

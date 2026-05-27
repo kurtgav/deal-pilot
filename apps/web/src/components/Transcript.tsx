@@ -20,7 +20,7 @@ export default function Transcript({ lines }: { lines: TranscriptLine[] }) {
       {lines.map((line, i) => {
         const style = speakerStyles[line.speaker] || speakerStyles.PROSPECT;
         return (
-          <div key={i} className="animate-field-flash rounded-lg p-2 -mx-2">
+          <div key={i} className="animate-field-flash -mx-2 rounded-2xl border border-slate-200/70 bg-white/65 p-3 shadow-sm">
             <span className={`text-xs font-semibold ${style.color}`}>{style.label}</span>
             <p className="text-sm mt-0.5 leading-relaxed">{line.text}</p>
           </div>

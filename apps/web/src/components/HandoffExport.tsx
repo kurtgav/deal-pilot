@@ -59,15 +59,15 @@ export default function HandoffExport({ handoff, lead }: Props) {
   return (
     <div className="space-y-8">
       {/* Summary */}
-      <section className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+      <section className="app-card p-6">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-3">Call Summary</h3>
         <p className="text-sm leading-relaxed">{handoff.summary}</p>
       </section>
 
       {/* Qualification */}
-      <section className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+      <section className="app-card p-6">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-4">Qualification</h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Stat label="Score" value={`${handoff.qualification.score}/100`} />
           <Stat label="Deal Stage" value={handoff.qualification.dealStage} />
           <Stat label="Product Fit" value={handoff.qualification.productFit} />
@@ -78,29 +78,29 @@ export default function HandoffExport({ handoff, lead }: Props) {
       </section>
 
       {/* CRM Export — CSV */}
-      <section className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+      <section className="app-card p-6">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">CRM Export</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopyCsv}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] transition-colors"
+              className="app-button-secondary px-3 py-1.5 text-xs"
             >
-              {copied ? '✓ Copied' : 'Copy CSV'}
+              {copied ? 'Copied' : 'Copy CSV'}
             </button>
             <button
               onClick={downloadExcel}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-primary)] hover:bg-[var(--color-surface-alt)] transition-colors"
+              className="app-button-secondary px-3 py-1.5 text-xs"
               title="UTF-8 BOM + CRLF — open directly in Excel on Windows"
             >
-              ⬇ Excel CSV
+              Excel CSV
             </button>
             <button
               onClick={downloadCrm}
-              className="text-xs px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white font-medium hover:bg-[var(--color-accent-light)] transition-colors"
+              className="app-button-primary px-3 py-1.5 text-xs"
               title="Plain CSV optimized for CRM importers (Monday, HubSpot, Salesforce, Pipedrive…)"
             >
-              ⬇ Download CSV (CRM)
+              Download CSV (CRM)
             </button>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function HandoffExport({ handoff, lead }: Props) {
         </p>
 
         {/* Preview table */}
-        <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white/80">
           <table className="w-full text-sm">
             <tbody>
               {CRM_COLUMNS.map((col, i) => (
@@ -134,30 +134,30 @@ export default function HandoffExport({ handoff, lead }: Props) {
           <summary className="text-xs text-[var(--color-muted)] cursor-pointer hover:text-[var(--color-primary)]">
             Show raw CSV (CRM variant)
           </summary>
-          <pre className="mt-2 text-xs bg-[var(--color-surface-alt)] p-3 rounded-lg overflow-x-auto font-mono whitespace-pre">
+          <pre className="mt-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/75 p-3 font-mono text-xs whitespace-pre">
 {csvCrm}
           </pre>
         </details>
       </section>
 
       {/* Follow-up Email */}
-      <section className="bg-white rounded-xl border border-[var(--color-border)] p-6">
+      <section className="app-card p-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Follow-up Email Draft</h3>
           <button onClick={copyEmail} className="text-xs text-[var(--color-accent)] hover:underline">Copy</button>
         </div>
-        <div className="text-sm leading-relaxed whitespace-pre-wrap bg-[var(--color-surface-alt)] p-4 rounded-lg">
+        <div className="whitespace-pre-wrap rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-sm leading-relaxed">
           {handoff.followUpEmailDraft}
         </div>
       </section>
 
       {/* Flagged Questions */}
       {handoff.flaggedQuestions.length > 0 && (
-        <section className="bg-white rounded-xl border border-amber-200 p-6">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-700 mb-3">⚠ Flagged for Human Follow-up</h3>
+        <section className="app-card border-amber-200 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-700 mb-3">Flagged for Human Follow-up</h3>
           <ul className="space-y-2">
             {handoff.flaggedQuestions.map((q, i) => (
-              <li key={i} className="text-sm text-amber-800">• {q}</li>
+              <li key={i} className="text-sm text-amber-800">{q}</li>
             ))}
           </ul>
         </section>
@@ -168,9 +168,10 @@ export default function HandoffExport({ handoff, lead }: Props) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 rounded-lg bg-[var(--color-surface-alt)]">
+    <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="text-sm font-medium mt-0.5">{value}</p>
     </div>
   );
 }
+

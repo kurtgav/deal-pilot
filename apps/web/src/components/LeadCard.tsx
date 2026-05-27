@@ -9,10 +9,10 @@ const statusColors: Record<string, string> = {
 
 export default function LeadCard({ lead, onStartCall }: { lead: Lead; onStartCall: (id: string) => void }) {
   return (
-    <div className="bg-white rounded-xl border border-[var(--color-border)] p-5 hover:shadow-sm transition-shadow">
+    <div className="app-card app-card-hover p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-[var(--color-surface-alt)] flex items-center justify-center text-sm font-semibold text-[var(--color-accent)]">
+          <div className="app-icon-box flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold">
             {lead.contactName.split(' ').map(n => n[0]).join('')}
           </div>
           <div>
@@ -25,7 +25,7 @@ export default function LeadCard({ lead, onStartCall }: { lead: Lead; onStartCal
             {lead.status === 'in_call' ? 'In Call' : lead.status === 'sql' ? 'SQL' : lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
           </span>
           {lead.status === 'new' && (
-            <button onClick={() => onStartCall(lead.id)} className="px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--color-accent-light)] transition-colors">
+            <button onClick={() => onStartCall(lead.id)} className="app-button-primary px-4 py-2 text-sm">
               Start Call
             </button>
           )}
