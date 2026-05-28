@@ -147,12 +147,13 @@ export default function Dashboard() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    const useFallback = import.meta.env.DEV;
     api
       .getLeads()
-      .then((data) => setLeads(data.length ? data : fallbackLeads))
+      .then((data) => setLeads(data.length ? data : useFallback ? fallbackLeads : []))
       .catch(() => {
-        setLeads(fallbackLeads);
-        setError('Using demo data because the API is not reachable.');
+        setLeads(useFallback ? fallbackLeads : []);
+        setError(useFallback ? 'Using demo data because the API is not reachable.' : 'Could not connect to the API.');
       })
       .finally(() => setLoading(false));
   }, []);

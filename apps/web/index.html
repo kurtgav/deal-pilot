@@ -1,15 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DealPilot AI</title>
+    <title>DealPilot AI — AI Voice Sales Engineer for B2B Discovery Calls</title>
+    <meta name="description" content="DealPilot AI is a real-time voice AI sales engineer that joins live B2B calls, qualifies prospects, answers technical questions, and generates CRM-ready handoffs automatically." />
+    <meta name="keywords" content="AI voice sales agent, AI sales engineer, B2B discovery calls, voice AI, sales automation, lead qualification, CRM handoff, objection handling, real-time transcription, sales copilot" />
+    <meta name="author" content="DealPilot AI" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://dealpilot.ai/" />
 
-    <!-- Favicons: SVG for modern browsers, ICO fallback for legacy clients -->
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DealPilot AI" />
+    <meta property="og:title" content="DealPilot AI — AI Voice Sales Engineer for B2B Discovery Calls" />
+    <meta property="og:description" content="An AI agent that joins live sales calls, qualifies prospects through voice conversation, answers technical questions, and generates CRM-ready handoffs." />
+    <meta property="og:url" content="https://dealpilot.ai/" />
+    <meta property="og:image" content="https://dealpilot.ai/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DealPilot AI — AI Voice Sales Engineer for B2B Discovery Calls" />
+    <meta name="twitter:description" content="Real-time voice AI that joins your sales calls, handles technical Q&A, scores leads, and generates CRM handoffs automatically." />
+    <meta name="twitter:image" content="https://dealpilot.ai/og-image.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "DealPilot AI",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "Real-time voice AI sales engineer for B2B software calls. Joins live discovery calls, qualifies prospects through voice conversation, answers technical questions from a knowledge base, and generates CRM-ready handoffs.",
+      "url": "https://dealpilot.ai",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "99",
+          "priceCurrency": "USD",
+          "billingIncrement": "P1M",
+          "description": "For small sales teams. 50 AI-assisted calls/month, real-time transcription, lead scoring, CRM JSON export."
+        },
+        {
+          "@type": "Offer",
+          "name": "Growth",
+          "price": "299",
+          "priceCurrency": "USD",
+          "billingIncrement": "P1M",
+          "description": "For scaling teams. 500 calls/month, custom knowledge base, objection handling, follow-up email drafts, priority support."
+        },
+        {
+          "@type": "Offer",
+          "name": "Enterprise",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Custom pricing. Unlimited calls, custom AI voice, SSO, dedicated CSM, SLA guarantee."
+        }
+      ],
+      "featureList": [
+        "Real-time voice AI on live B2B sales calls",
+        "Dynamic discovery question sequencing",
+        "RAG-powered product and technical Q&A",
+        "Objection detection and trained rebuttal delivery",
+        "Real-time lead scoring (0-100)",
+        "Live field extraction during calls",
+        "CRM-ready JSON export",
+        "Automated follow-up email drafts",
+        "Full call transcription with speaker labels",
+        "Sales rep mute/pause/override controls"
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "84",
+        "bestRating": "5"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "DealPilot AI",
+      "url": "https://dealpilot.ai",
+      "description": "Real-time voice AI sales engineer for B2B software companies",
+      "foundingDate": "2024",
+      "sameAs": [],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "url": "https://dealpilot.ai/book-demo"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How does DealPilot AI join a sales call?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "DealPilot AI joins as a named participant on your voice call via Agora RTC. Your rep starts the call from the dashboard, and the AI handles discovery, Q&A, and objection handling in real time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will the AI hallucinate product information?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. All product and technical answers come from your curated knowledge base via RAG retrieval. If a question falls outside scope, the AI flags it for human follow-up instead of guessing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can my rep override or mute the AI mid-call?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The sales rep retains full control at all times — they can mute, pause, or end the AI at any point during the call. The AI never talks over the rep."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens after the call ends?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "DealPilot generates a complete handoff package: full transcript, lead qualification score (0-100), CRM-ready JSON export, and a personalized follow-up email draft — all within seconds."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
 
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />

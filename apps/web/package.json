@@ -10,6 +10,7 @@
   "dependencies": {
     "@dealpilot/shared": "workspace:*",
     "agora-rtc-sdk-ng": "4.23.2",
+    "lucide-react": "0.454.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.1",
