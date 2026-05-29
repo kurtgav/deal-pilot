@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "pnpm -r --parallel dev",
-    "build": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build && pnpm --filter @dealpilot/web build",
+    "build": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build",
+    "build:all": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build && pnpm --filter @dealpilot/web build",
     "build:api": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/api build",
     "build:web": "pnpm --filter @dealpilot/shared build && pnpm --filter @dealpilot/web build",
     "dev:api": "pnpm --filter @dealpilot/api dev",
