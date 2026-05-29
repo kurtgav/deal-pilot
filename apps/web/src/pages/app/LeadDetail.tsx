@@ -24,27 +24,35 @@ export default function LeadDetail() {
   const { leadId } = useParams();
   const navigate = useNavigate();
   const [lead, setLead] = useState<Lead | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [handoff, setHandoff] = useState<any | null>(null);
 
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      setLead(fallbackLeads.find(l => l.id === leadId) || null);
-      return;
-    }
     api.getLead(leadId!).then(setLead).catch(() => {
       setLead(fallbackLeads.find(l => l.id === leadId) || null);
     });
   }, [leadId]);
+
+  // Load the most recent handoff for this lead's last call session, if any.
+  useEffect(() => {
+    if (!lead?.lastCallSessionId) return;
+    api.getHandoff(lead.lastCallSessionId).then(setHandoff).catch(() => setHandoff(null));
+  }, [lead?.lastCallSessionId]);
 
   if (!lead) return <div className="text-[14px] text-slate-400">Lead not found.</div>;
 
   const meta = leadMeta[lead.id] || { title: 'Prospect', email: '', phone: '', score: 0, hypothesis: '', objective: '' };
 
   const handleStartCall = async () => {
+    setError(null);
+    setStarting(true);
     try {
       const session = await api.startSession(lead.id);
       navigate(`/call/${session.id}`);
-    } catch {
-      navigate(`/call/demo-${lead.id}`);
+    } catch (e: any) {
+      setError(e.message || 'Failed to start call. Please try again.');
+      setStarting(false);
     }
   };
 
@@ -96,6 +104,21 @@ export default function LeadDetail() {
             <h3 className="text-[13px] font-semibold text-slate-900 mb-2">Call Objective</h3>
             <p className="text-[14px] text-slate-600 leading-relaxed">{meta.objective || 'No objective set.'}</p>
           </div>
+
+          {/* Last handoff (after a completed call) */}
+          {handoff && (
+            <div className="dash-card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[13px] font-semibold text-slate-900">Last Call Handoff</h3>
+                <Link to={`/handoff/${handoff.sessionId}`} className="text-[12px] text-indigo-600 font-medium hover:text-indigo-700">View full →</Link>
+              </div>
+              <p className="text-[14px] text-slate-600 leading-relaxed">{handoff.summary}</p>
+              <div className="mt-3 flex gap-4 text-[13px]">
+                <span><span className="text-slate-400">Score:</span> <span className="font-semibold text-slate-800">{handoff.qualification?.score}/100</span></span>
+                <span><span className="text-slate-400">Stage:</span> <span className="text-slate-700">{handoff.qualification?.dealStage}</span></span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar */}
@@ -116,11 +139,13 @@ export default function LeadDetail() {
 
           <button
             onClick={handleStartCall}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-[14px] font-medium hover:bg-indigo-700 transition-colors"
+            disabled={starting}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-[14px] font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Phone className="h-4 w-4" />
-            Start Call
+            {starting ? 'Starting…' : 'Start Call'}
           </button>
+          {error && <p className="text-[12px] text-red-600 mt-2">{error}</p>}
         </div>
       </div>
     </div>

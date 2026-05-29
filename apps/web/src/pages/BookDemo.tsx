@@ -45,7 +45,7 @@ export default function BookDemo() {
                 <li>• AI joining a live voice call as a sales engineer</li>
                 <li>• Real-time field extraction and lead scoring</li>
                 <li>• Technical Q&A from a knowledge base (zero hallucination)</li>
-                <li>• Post-call CRM JSON and follow-up email generation</li>
+                <li>• Post-call CRM CSV and follow-up email generation</li>
               </ul>
             </div>
           </div>

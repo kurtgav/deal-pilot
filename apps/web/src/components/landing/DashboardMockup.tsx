@@ -1,10 +1,10 @@
-import { Search, LayoutDashboard, Phone, Users, Settings, TrendingUp, ChevronDown } from 'lucide-react';
+import { Search, LayoutDashboard, Phone, Users, Settings, TrendingUp, ChevronDown, FileSpreadsheet } from 'lucide-react';
 
-const leads = [
-  { name: 'Sarah Chen', company: 'TechScale', useCase: 'Live tutoring rooms', score: 85, status: 'SQL' },
-  { name: 'James Park', company: 'CloudFirst', useCase: 'Customer support voice', score: 72, status: 'In Call' },
-  { name: 'Maria Lopez', company: 'Nexus AI', useCase: 'Sales automation', score: 58, status: 'New' },
-  { name: 'David Kim', company: 'Orbit SaaS', useCase: 'Developer onboarding', score: 41, status: 'New' },
+const csvRows = [
+  { row: 1, name: 'Sarah Chen', company: 'TechScale', useCase: 'Live tutoring rooms', score: 85, status: 'SQL' },
+  { row: 2, name: 'James Park', company: 'CloudFirst', useCase: 'Customer support voice', score: 72, status: 'In Call' },
+  { row: 3, name: 'Maria Lopez', company: 'Nexus AI', useCase: 'Sales automation', score: 58, status: 'New' },
+  { row: 4, name: 'David Kim', company: 'Orbit SaaS', useCase: 'Developer onboarding', score: 41, status: 'New' },
 ];
 
 export default function DashboardMockup() {
@@ -52,29 +52,35 @@ export default function DashboardMockup() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="lg:col-span-3 rounded-xl border border-zinc-100 bg-zinc-50/30 p-4">
-                <p className="text-xs font-medium text-zinc-500 mb-3">Lead Pipeline</p>
-                <table className="w-full text-xs">
+              <div className="lg:col-span-3 rounded-xl border border-zinc-200 bg-white overflow-hidden">
+                <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-xs font-medium text-zinc-600">leads_pipeline.csv</span>
+                  <span className="ml-auto text-[10px] text-zinc-400">4 rows · 5 columns</span>
+                </div>
+                <table className="w-full text-xs border-collapse">
                   <thead>
-                    <tr className="text-zinc-400 border-b border-zinc-100">
-                      <th className="pb-2 text-left font-medium">Contact</th>
-                      <th className="pb-2 text-left font-medium">Company</th>
-                      <th className="pb-2 text-left font-medium">Use Case</th>
-                      <th className="pb-2 text-left font-medium">Score</th>
-                      <th className="pb-2 text-right font-medium">Status</th>
+                    <tr className="bg-zinc-100 text-zinc-500">
+                      <th className="w-6 border-r border-zinc-200 py-1.5 text-center font-medium text-[10px] text-zinc-400">#</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left font-medium">Contact</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left font-medium">Company</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left font-medium hidden sm:table-cell">Use Case</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left font-medium">Score</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.map((l) => (
-                      <tr key={l.name} className="border-b border-zinc-50">
-                        <td className="py-2.5 font-medium text-zinc-700">{l.name}</td>
-                        <td className="py-2.5 text-zinc-500">{l.company}</td>
-                        <td className="py-2.5 text-zinc-500">{l.useCase}</td>
-                        <td className="py-2.5">
-                          <span className={`font-mono text-xs ${l.score >= 80 ? 'text-emerald-600' : l.score >= 60 ? 'text-amber-600' : 'text-zinc-500'}`}>{l.score}</span>
+                    {csvRows.map((l) => (
+                      <tr key={l.name} className="border-t border-zinc-100 hover:bg-zinc-50/60">
+                        <td className="border-r border-zinc-200 py-2 text-center text-[10px] text-zinc-300 font-mono">{l.row}</td>
+                        <td className="border-r border-zinc-200 px-2 py-2 font-medium text-zinc-700">{l.name}</td>
+                        <td className="border-r border-zinc-200 px-2 py-2 text-zinc-500">{l.company}</td>
+                        <td className="border-r border-zinc-200 px-2 py-2 text-zinc-500 hidden sm:table-cell">{l.useCase}</td>
+                        <td className="border-r border-zinc-200 px-2 py-2">
+                          <span className={`font-mono text-xs ${l.score >= 80 ? 'text-emerald-600' : l.score >= 60 ? 'text-amber-600' : 'text-zinc-400'}`}>{l.score}</span>
                         </td>
-                        <td className="py-2.5 text-right">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${l.status === 'SQL' ? 'bg-emerald-50 text-emerald-700' : l.status === 'In Call' ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-600'}`}>{l.status}</span>
+                        <td className="px-2 py-2">
+                          <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${l.status === 'SQL' ? 'bg-emerald-50 text-emerald-700' : l.status === 'In Call' ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-500'}`}>{l.status}</span>
                         </td>
                       </tr>
                     ))}

@@ -8,7 +8,7 @@ const useCases = [
   { icon: Mic, title: 'AI-Assisted Discovery Calls', desc: 'DealPilot joins live calls and runs structured discovery — qualifying prospects through natural voice conversation without needing a human SE.', metric: '3x more calls/week' },
   { icon: Brain, title: 'Technical Q&A on Calls', desc: 'Prospects ask SDK, API, and integration questions mid-call. DealPilot answers instantly from your knowledge base — no hallucination, no "let me get back to you."', metric: '94% answer accuracy' },
   { icon: Shield, title: 'Real-Time Objection Handling', desc: 'AI detects pricing, timeline, and competitive objections as they happen and delivers trained rebuttals to keep deals moving forward.', metric: '40% fewer stalled deals' },
-  { icon: FileText, title: 'Automated CRM Handoffs', desc: 'Every call generates a complete package: transcript, lead score, CRM JSON, and follow-up email draft — ready in seconds, not hours.', metric: '80% less admin time' },
+  { icon: FileText, title: 'Automated CRM Handoffs', desc: 'Every call generates a complete package: transcript, lead score, CRM CSV, and follow-up email draft — ready in seconds, not hours.', metric: '80% less admin time' },
   { icon: Zap, title: 'Lead Scoring & Qualification', desc: 'Real-time scoring based on urgency, budget signal, technical fit, and decision-maker involvement. Know which leads to prioritize instantly.', metric: '+52% SQL conversion' },
   { icon: Users, title: 'SE Bottleneck Elimination', desc: 'Stop waiting for sales engineers to be available. DealPilot handles routine technical discovery so your SEs focus on complex, high-value engagements.', metric: '5x SE leverage' },
 ];

@@ -9,7 +9,7 @@ const plans = [
     name: 'Starter',
     price: '$99',
     desc: 'For small sales teams running AI-assisted discovery calls.',
-    features: ['50 AI-assisted calls/month', 'Real-time transcription', 'Lead scoring (0–100)', 'CRM JSON export', '1 knowledge base'],
+    features: ['50 AI-assisted calls/month', 'Real-time transcription', 'Lead scoring (0–100)', 'CRM CSV export', '1 knowledge base'],
     cta: 'Start Free Trial',
     highlight: false,
   },

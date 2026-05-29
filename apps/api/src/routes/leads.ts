@@ -1,13 +1,12 @@
 import { Router } from 'express';
-import { v4 as uuid } from 'uuid';
-import type { Lead, LeadStatus } from '@dealpilot/shared';
-import { db } from '../db/schema.js';
+import type { LeadStatus } from '@dealpilot/shared';
+import * as repo from '../db/repo.js';
 import { scrapeCompanyUrl } from '../services/WebScraper.js';
 
 export const leadsRouter = Router();
 
-leadsRouter.get('/', (_req, res) => {
-  res.json(db.leads);
+leadsRouter.get('/', async (req, res) => {
+  res.json(await repo.listLeads(req.user!.id));
 });
 
 leadsRouter.post('/', async (req, res) => {
@@ -23,31 +22,26 @@ leadsRouter.post('/', async (req, res) => {
     }
   }
 
-  const lead: Lead = {
-    id: uuid(),
+  const lead = await repo.createLead({
+    userId: req.user!.id,
     contactName,
     company,
     companyUrl,
     scrapedContext,
     industry,
     initialUseCase,
-    status: 'new',
-    createdAt: new Date().toISOString(),
-  };
-
-  db.leads.push(lead);
+  });
   res.status(201).json(lead);
 });
 
-leadsRouter.get('/:id', (req, res) => {
-  const lead = db.leads.find((l) => l.id === req.params.id);
+leadsRouter.get('/:id', async (req, res) => {
+  const lead = await repo.getLead(req.params.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   res.json(lead);
 });
 
-leadsRouter.patch('/:id/status', (req, res) => {
-  const lead = db.leads.find((l) => l.id === req.params.id);
+leadsRouter.patch('/:id/status', async (req, res) => {
+  const lead = await repo.updateLead(req.params.id, { status: req.body.status as LeadStatus });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  lead.status = req.body.status as LeadStatus;
   res.json(lead);
 });

@@ -19,7 +19,6 @@ export default function DashboardHome() {
   const [leads, setLeads] = useState<Lead[]>([]);
 
   useEffect(() => {
-    if (import.meta.env.DEV) { setLeads(fallbackLeads); return; }
     api.getLeads().then(setLeads).catch(() => setLeads(fallbackLeads));
   }, []);
 

@@ -1,39 +1,26 @@
 import { Router } from 'express';
-import { v4 as uuid } from 'uuid';
-import type { CallSession } from '@dealpilot/shared';
-import { db } from '../db/schema.js';
+import * as repo from '../db/repo.js';
 
 export const sessionsRouter = Router();
 
-sessionsRouter.post('/start', (req, res) => {
+sessionsRouter.post('/start', async (req, res) => {
   const { leadId } = req.body;
-  const lead = db.leads.find((l) => l.id === leadId);
+  const lead = await repo.getLead(leadId);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
 
-  const session: CallSession = {
-    id: uuid(),
-    leadId,
-    startedAt: new Date().toISOString(),
-    transcript: [],
-    extractedFields: { painPoints: [], objections: [], unansweredQuestions: [] },
-    status: 'active',
-  };
-  db.sessions.push(session);
-  lead.status = 'in_call';
-  lead.lastCallSessionId = session.id;
+  const session = await repo.createSession(leadId, req.user!.id);
+  await repo.updateLead(leadId, { status: 'in_call', lastCallSessionId: session.id });
   res.status(201).json(session);
 });
 
-sessionsRouter.patch('/:id/end', (req, res) => {
-  const session = db.sessions.find((s) => s.id === req.params.id);
+sessionsRouter.patch('/:id/end', async (req, res) => {
+  const session = await repo.endSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  session.status = 'ended';
-  session.endedAt = new Date().toISOString();
   res.json(session);
 });
 
-sessionsRouter.get('/:id', (req, res) => {
-  const session = db.sessions.find((s) => s.id === req.params.id);
+sessionsRouter.get('/:id', async (req, res) => {
+  const session = await repo.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(session);
 });

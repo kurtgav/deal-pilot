@@ -5,7 +5,7 @@ const prompts = [
   'Can the AI answer SDK and API integration questions?',
   'What happens when a prospect raises an objection?',
   'How fast is the AI voice response?',
-  'Does DealPilot generate CRM-ready JSON after calls?',
+  'Does DealPilot generate CRM-ready CSV after calls?',
   'Can my rep mute or override the AI during a call?',
 ];
 

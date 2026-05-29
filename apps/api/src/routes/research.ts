@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db/schema.js';
+import * as repo from '../db/repo.js';
 import { callLLM } from '../services/AIAgent.js';
 import { scrapeCompanyUrl } from '../services/WebScraper.js';
 
@@ -11,15 +11,13 @@ export const researchRouter = Router();
  * for pre-call preparation.
  */
 researchRouter.post('/:leadId', async (req, res) => {
-  const lead = db.leads.find((l) => l.id === req.params.leadId);
+  const lead = await repo.getLead(req.params.leadId);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   if (!lead.companyUrl) return res.status(400).json({ error: 'Lead has no companyUrl' });
 
-  // Re-scrape for fresh data
   const scraped = await scrapeCompanyUrl(lead.companyUrl);
-  lead.scrapedContext = scraped;
+  await repo.updateLead(lead.id, { scrapedContext: scraped });
 
-  // Generate AI insights
   const insights = await generateInsights(lead.company, lead.industry, scraped);
 
   res.json({ leadId: lead.id, scrapedContext: scraped, insights });
@@ -30,7 +28,7 @@ researchRouter.post('/:leadId', async (req, res) => {
  * Returns existing scraped context and generates insights without re-scraping.
  */
 researchRouter.get('/:leadId', async (req, res) => {
-  const lead = db.leads.find((l) => l.id === req.params.leadId);
+  const lead = await repo.getLead(req.params.leadId);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
 
   if (!lead.scrapedContext) {

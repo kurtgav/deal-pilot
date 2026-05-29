@@ -57,7 +57,7 @@ DealPilot AI functions as an always-available AI Sales Engineer that:
 4. **Handles objections** with trained rebuttals
 5. **Recommends the right solution package** based on extracted context
 6. **Scores lead quality** in real time
-7. **Generates a complete sales handoff** — transcript, lead score, CRM JSON, and follow-up email draft
+7. **Generates a complete sales handoff** — transcript, lead score, CRM CSV, and follow-up email draft
 
 ---
 
@@ -134,7 +134,7 @@ Rep opens Dashboard
   → Rep monitors live panel (extracted fields update in real time)
   → Call ends
   → Rep reviews post-call handoff
-  → Rep approves and exports CRM JSON / follow-up email
+  → Rep approves and exports CRM CSV / follow-up email
 ```
 
 ### Journey 2 — Prospect Experience During Call
@@ -154,7 +154,7 @@ Prospect receives or joins a voice call
 
 ```
 Call ends
-  → System generates: transcript, lead score, CRM JSON, follow-up email draft
+  → System generates: transcript, lead score, CRM CSV, follow-up email draft
   → Rep reviews each output section
   → Rep edits if needed
   → Rep exports JSON to CRM or sends email draft
@@ -221,7 +221,7 @@ Call ends
 |----|--------|----------|
 | F5.1 | Full call transcript (timestamped, speaker-labeled) | P0 |
 | F5.2 | Lead qualification summary card | P0 |
-| F5.3 | CRM-ready JSON export | P0 |
+| F5.3 | CRM-ready CSV export | P0 |
 | F5.4 | Follow-up email draft | P0 |
 | F5.5 | Flagged unanswered questions list | P1 |
 
@@ -658,7 +658,7 @@ The following are explicitly **not built** for this version:
 |--------|--------|
 | End-to-end call demo completes without error | 100% |
 | Copilot panel fields populated during call | ≥ 6 fields |
-| Post-call CRM JSON generated correctly | Valid JSON, all required fields |
+| Post-call CRM CSV generated correctly | Valid CSV, all required fields |
 | Follow-up email draft generated | Coherent, personalized to demo scenario |
 | AI avoids hallucination during product Q&A | 0 fabricated facts |
 | AI correctly escalates 1 out-of-scope question | Confirmed in demo script |

@@ -48,6 +48,10 @@ export default function CallRoom() {
     }
   };
 
+  // STT transport: 'deepgram' streams mic audio to the server (cross-browser);
+  // default 'browser' uses Web Speech API. Set VITE_STT_TRANSPORT=deepgram to enable.
+  const sttTransport = import.meta.env.VITE_STT_TRANSPORT === 'deepgram' ? 'deepgram' : 'browser';
+
   // TTS + STT — fil-PH lang enables Filipino + Taglish recognition.
   const {
     listening,
@@ -63,10 +67,12 @@ export default function CallRoom() {
     silenceTimeoutMs: 1500,
     rate: speechRate,
     mode: 'continuous',
+    transport: sttTransport,
+    onAudioChunk: (chunk) => sendAudio(chunk),
   });
 
   // Socket agent responses are spoken, then the loop closes via the speaking-end effect.
-  const { sendTranscript, muteAgent, unmuteAgent } = useSocket(
+  const { sendTranscript, sendAudio, muteAgent, unmuteAgent } = useSocket(
     sessionId!,
     (aiText) => {
       // Stop mic immediately when AI is about to speak

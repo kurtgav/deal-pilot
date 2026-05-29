@@ -3,7 +3,7 @@
     "id": "starter",
     "name": "DealPilot Starter",
     "price": "$499/mo",
-    "features": ["Up to 50 AI-assisted calls/month", "Basic lead scoring", "CRM JSON export", "Email templates", "1 knowledge base"],
+    "features": ["Up to 50 AI-assisted calls/month", "Basic lead scoring", "CRM CSV export", "Email templates", "1 knowledge base"],
     "bestFor": "Early-stage startups with < 10 reps",
     "integrations": ["REST API", "Webhook notifications"]
   },

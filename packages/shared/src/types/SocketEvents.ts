@@ -3,6 +3,7 @@ import type { TranscriptLine, ExtractedSalesFields } from './Session.js';
 export interface ClientToServerEvents {
   'session:join': (payload: { sessionId: string }) => void;
   'voice:transcript': (payload: { text: string; speaker: 'PROSPECT' | 'REP' }) => void;
+  'voice:audio': (chunk: ArrayBuffer) => void;
   'agent:mute': (payload: { sessionId: string }) => void;
   'agent:unmute': (payload: { sessionId: string }) => void;
   'rep:field:override': (payload: { sessionId: string; field: string; value: string }) => void;

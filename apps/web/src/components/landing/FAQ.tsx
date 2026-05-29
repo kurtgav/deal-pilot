@@ -5,7 +5,7 @@ const faqs = [
   { q: 'How does DealPilot AI join a sales call?', a: 'DealPilot AI joins as a named participant on your voice call via Agora RTC. Your rep starts the call from the dashboard, and the AI handles discovery, Q&A, and objection handling in real time.' },
   { q: 'Will the AI hallucinate product information?', a: 'No. All product and technical answers come from your curated knowledge base via RAG retrieval. If a question falls outside scope, the AI flags it for human follow-up instead of guessing.' },
   { q: 'Can my rep override or mute the AI mid-call?', a: 'Yes. The sales rep retains full control at all times — they can mute, pause, or end the AI at any point during the call. The AI never talks over the rep.' },
-  { q: 'What happens after the call ends?', a: 'DealPilot generates a complete handoff package: full transcript, lead qualification score (0–100), CRM-ready JSON export, and a personalized follow-up email draft — all within seconds.' },
+  { q: 'What happens after the call ends?', a: 'DealPilot generates a complete handoff package: full transcript, lead qualification score (0–100), CRM-ready CSV export, and a personalized follow-up email draft — all within seconds.' },
   { q: 'Does DealPilot replace my sales engineers?', a: 'No. DealPilot handles routine technical discovery so your SEs can focus on complex, high-value engagements. It eliminates the scheduling bottleneck, not the role.' },
   { q: 'What voice and AI infrastructure does it use?', a: 'Agora RTC for voice, Deepgram for real-time speech-to-text, ElevenLabs for natural AI voice output, and Anthropic Claude for intelligent conversation and field extraction.' },
 ];

@@ -3,7 +3,7 @@ import { Mic, Brain, FileText } from 'lucide-react';
 const metrics = [
   { icon: Mic, title: 'Voice Discovery', desc: 'AI joins live calls and asks dynamic qualifying questions — extracting pain points, budget signals, and urgency in real time.', color: 'text-blue-600 bg-blue-50' },
   { icon: Brain, title: 'Technical Q&A', desc: 'Answers product and integration questions from your knowledge base via RAG — no hallucination, no guessing.', color: 'text-violet-600 bg-violet-50' },
-  { icon: FileText, title: 'CRM Handoff', desc: 'Generates a complete post-call package: transcript, lead score, CRM JSON, and personalized follow-up email draft.', color: 'text-amber-600 bg-amber-50' },
+  { icon: FileText, title: 'CRM Handoff', desc: 'Generates a complete post-call package: transcript, lead score, CRM CSV, and personalized follow-up email draft.', color: 'text-amber-600 bg-amber-50' },
 ];
 
 export default function MetricsGrid() {

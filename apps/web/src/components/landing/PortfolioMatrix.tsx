@@ -13,7 +13,7 @@ const features = [
   { icon: Mic, title: 'Sub-1.5s voice response latency' },
   { icon: Brain, title: 'Knowledge base RAG — zero hallucination' },
   { icon: Shield, title: 'Rep retains full control (mute/pause/end)' },
-  { icon: FileText, title: 'CRM JSON + follow-up email in seconds' },
+  { icon: FileText, title: 'CRM CSV + follow-up email in seconds' },
   { icon: Zap, title: 'Real-time field extraction during call' },
 ];
 

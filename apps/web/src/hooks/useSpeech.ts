@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 export type SpeechMode = 'manual' | 'continuous';
 
@@ -30,6 +31,16 @@ interface UseSpeechOptions {
    *                   Required for closed-loop conversational mode.
    */
   mode?: SpeechMode;
+  /**
+   * STT transport.
+   * - 'browser'  → Web Speech API SpeechRecognition (Chrome-only).
+   * - 'deepgram' → capture mic via MediaRecorder and stream chunks to the
+   *                server (cross-browser). Transcripts arrive over the socket,
+   *                so onTranscript does NOT fire in this mode.
+   */
+  transport?: 'browser' | 'deepgram';
+  /** Called with each audio chunk when transport === 'deepgram'. */
+  onAudioChunk?: (chunk: ArrayBuffer) => void;
 }
 
 interface StopOptions {
@@ -131,6 +142,8 @@ export function useSpeech({
   silenceTimeoutMs = 2000,
   rate = 1,
   mode = 'manual',
+  transport = 'browser',
+  onAudioChunk,
 }: UseSpeechOptions) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -146,6 +159,14 @@ export function useSpeech({
   const keepAliveRef = useRef(false);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startListeningRef = useRef<() => void>(() => {});
+
+  // Deepgram transport refs
+  const transportRef = useRef(transport);
+  const onAudioChunkRef = useRef(onAudioChunk);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  useEffect(() => { transportRef.current = transport; }, [transport]);
+  useEffect(() => { onAudioChunkRef.current = onAudioChunk; }, [onAudioChunk]);
 
   // TTS refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -183,6 +204,22 @@ export function useSpeech({
     const { flush = true } = opts;
     clearSilenceTimer();
     keepAliveRef.current = false;
+
+    // Deepgram transport: tear down MediaRecorder + mic stream.
+    if (transportRef.current === 'deepgram') {
+      if (mediaRecorderRef.current) {
+        try { mediaRecorderRef.current.stop(); } catch {}
+        mediaRecorderRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      setListening(false);
+      setInterim('');
+      return;
+    }
+
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current);
       restartTimerRef.current = null;
@@ -213,6 +250,33 @@ export function useSpeech({
   }, [silenceTimeoutMs, clearSilenceTimer, stopListening]);
 
   const startListening = useCallback(async () => {
+    // Deepgram transport: capture mic with MediaRecorder, stream to server.
+    if (transportRef.current === 'deepgram') {
+      if (speakingRef.current) {
+        console.log('[STT] startListening (deepgram) while AI speaking — deferring');
+        return;
+      }
+      if (mediaRecorderRef.current) return; // already capturing
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        mediaStreamRef.current = stream;
+        const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mr.ondataavailable = async (e) => {
+          if (e.data.size > 0) onAudioChunkRef.current?.(await e.data.arrayBuffer());
+        };
+        mr.start(250); // emit a chunk every 250ms for low-latency streaming
+        mediaRecorderRef.current = mr;
+        setListening(true);
+        console.log('[STT] Deepgram capture started');
+      } catch (err) {
+        console.error('[STT] Deepgram getUserMedia failed:', err);
+        alert('Microphone access denied. Please allow microphone permission and try again.');
+      }
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert('Speech Recognition not supported. Please use Google Chrome.');
@@ -375,9 +439,14 @@ export function useSpeech({
     language: 'en' | 'fil',
   ): Promise<boolean> => {
     try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
       const res = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ text, language }),
       });
       if (!res.ok) {

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env.js';
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
@@ -9,6 +9,10 @@ import { handoffRouter } from './routes/handoff.js';
 import { agoraRouter } from './routes/agora.js';
 import { ttsRouter } from './routes/tts.js';
 import { researchRouter } from './routes/research.js';
+import { knowledgeRouter } from './routes/knowledge.js';
+import { adminRouter } from './routes/admin.js';
+import { loadKnowledge } from './services/RAGService.js';
+import { requireAuth } from './middleware/auth.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -16,19 +20,25 @@ const httpServer = createServer(app);
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
-app.use('/api/leads', leadsRouter);
-app.use('/api/sessions', sessionsRouter);
-app.use('/api/handoff', handoffRouter);
-app.use('/api/agora', agoraRouter);
-app.use('/api/tts', ttsRouter);
-app.use('/api/research', researchRouter);
-
+// Public endpoints (no auth required)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Protected endpoints — every route below requires a valid Supabase JWT.
+// Individual routers can layer requirePermission()/requireRole() on top
+// for fine-grained access control.
+app.use('/api/leads', requireAuth, leadsRouter);
+app.use('/api/sessions', requireAuth, sessionsRouter);
+app.use('/api/handoff', requireAuth, handoffRouter);
+app.use('/api/agora', requireAuth, agoraRouter);
+app.use('/api/tts', requireAuth, ttsRouter);
+app.use('/api/research', requireAuth, researchRouter);
+app.use('/api/knowledge', requireAuth, knowledgeRouter);
+app.use('/api/admin', requireAuth, adminRouter);
 
 initSocketServer(httpServer);
 
-import { seedDatabase } from './db/seedData.js';
-seedDatabase();
+// Warm the in-memory knowledge cache used by the AI agent for RAG.
+loadKnowledge().catch((e) => console.warn('[RAG] initial load failed:', e?.message ?? e));
 
 const PORT = process.env.PORT || 3001;
 httpServer.on('error', (err: any) => {

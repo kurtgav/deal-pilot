@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Lead } from '@dealpilot/shared';
 import { api } from '../../lib/api';
+import { toast } from '../../components/Toaster';
 import { Search } from 'lucide-react';
 
 const fallbackLeads: Lead[] = [
@@ -17,12 +18,15 @@ const statusColor: Record<string, string> = { new: 'bg-slate-100 text-slate-600'
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Lead | null>(null);
 
   useEffect(() => {
-    if (import.meta.env.DEV) { setLeads(fallbackLeads); return; }
-    api.getLeads().then(setLeads).catch(() => setLeads(fallbackLeads));
+    api.getLeads()
+      .then(setLeads)
+      .catch(() => { setLeads(fallbackLeads); toast('Could not load leads — showing sample data.', 'error'); })
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = leads.filter(l =>
@@ -75,6 +79,18 @@ export default function Leads() {
                   </td>
                 </tr>
               ))}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-5 py-16 text-center text-[14px] text-slate-400">
+                    {leads.length === 0 ? 'No leads yet. Add your first lead to get started.' : 'No leads match your search.'}
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={4} className="px-5 py-16 text-center text-[14px] text-slate-400">Loading leads…</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
