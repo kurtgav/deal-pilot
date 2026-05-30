@@ -60,6 +60,11 @@ function clampRate(r: number): number {
 // Chrome loads SpeechSynthesis voices async; pre-touching getVoices() and
 // listening for `voiceschanged` cuts the first-utterance latency noticeably.
 let voicesPreloadStarted = false;
+
+// Cache ElevenLabs availability across turns. Once we learn the server has no
+// TTS configured (or it's too slow), skip the round-trip and go straight to the
+// instant local browser voice — critical for fast back-to-back responses.
+let elevenLabsAvailable: boolean | null = null;
 function preloadVoices() {
   if (typeof window === 'undefined') return;
   if (voicesPreloadStarted) return;
@@ -441,6 +446,9 @@ export function useSpeech({
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
+      // Bound the probe so a cold/slow API can never stall the voice loop.
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2500);
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/tts`, {
         method: 'POST',
         headers: {
@@ -448,11 +456,15 @@ export function useSpeech({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ text, language }),
+        signal: ctrl.signal,
       });
+      clearTimeout(t);
       if (!res.ok) {
+        elevenLabsAvailable = false;
         console.warn('[TTS] ElevenLabs unavailable, falling back to browser TTS');
         return false;
       }
+      elevenLabsAvailable = true;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
@@ -499,6 +511,7 @@ export function useSpeech({
         });
       });
     } catch (err) {
+      elevenLabsAvailable = false;
       console.warn('[TTS] ElevenLabs error, falling back to browser TTS:', err);
       return false;
     }
@@ -585,8 +598,11 @@ export function useSpeech({
       audioRef.current = null;
     }
 
-    const success = await speakWithElevenLabs(text, language);
-    if (success) return;
+    // Skip the network round-trip entirely once we know the server has no TTS.
+    if (elevenLabsAvailable !== false) {
+      const success = await speakWithElevenLabs(text, language);
+      if (success) return;
+    }
 
     console.log('[TTS] Using browser fallback');
     await speakWithBrowser(text, isFilipino);

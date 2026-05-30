@@ -64,7 +64,7 @@ export default function CallRoom() {
   } = useSpeech({
     onTranscript: handleProspectTurn,
     lang: 'fil-PH',
-    silenceTimeoutMs: 1500,
+    silenceTimeoutMs: 800,
     rate: speechRate,
     mode: 'continuous',
     transport: sttTransport,
