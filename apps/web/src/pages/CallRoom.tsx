@@ -196,7 +196,7 @@ export default function CallRoom() {
         : { label: 'Processing…', dot: 'bg-amber-500', text: 'text-amber-600' };
 
   return (
-    <div className="app-bg app-surface flex min-h-screen flex-col">
+    <div className="app-bg app-surface flex h-screen flex-col overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-white/70 bg-white/72 px-4 py-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center justify-between">
@@ -235,9 +235,9 @@ export default function CallRoom() {
         </div>
       )}
 
-      <div className="grid flex-1 gap-4 overflow-auto p-4 lg:grid-cols-12" style={{ minHeight: 'calc(100vh - 73px)' }}>
+      <div className="grid flex-1 min-h-0 gap-4 overflow-y-auto p-4 lg:overflow-hidden lg:grid-cols-12">
         {/* Transcript + Voice */}
-        <div className="app-card col-span-5 flex min-h-[560px] flex-col overflow-hidden">
+        <div className="app-card col-span-5 flex h-[65vh] min-h-0 flex-col overflow-hidden lg:h-auto">
           <div className="app-panel-header flex items-center justify-between px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Live Transcript</h2>
             <span className={`text-xs flex items-center gap-1.5 ${loopStatus.text}`}>
@@ -354,7 +354,7 @@ export default function CallRoom() {
         </div>
 
         {/* Copilot Panel */}
-        <div className="app-card col-span-4 flex min-h-[520px] flex-col overflow-hidden">
+        <div className="app-card col-span-4 flex min-h-0 flex-col overflow-hidden max-lg:h-[60vh]">
           <div className="app-panel-header px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Sales Copilot</h2>
           </div>
@@ -362,11 +362,11 @@ export default function CallRoom() {
         </div>
 
         {/* Score */}
-        <div className="app-card col-span-3 flex min-h-[520px] flex-col overflow-hidden">
+        <div className="app-card col-span-3 flex min-h-0 flex-col overflow-hidden max-lg:h-[50vh]">
           <div className="app-panel-header px-5 py-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-muted)]">Lead Score</h2>
           </div>
-          <div className="flex-1 p-5 flex flex-col items-center justify-start gap-6 pt-10">
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col items-center justify-start gap-6 pt-10">
             <LeadScoreGauge score={score} />
             {lead && (
               <div className="w-full space-y-3 mt-4">

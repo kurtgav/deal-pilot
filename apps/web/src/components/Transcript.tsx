@@ -13,7 +13,7 @@ export default function Transcript({ lines }: { lines: TranscriptLine[] }) {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [lines.length]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
       {lines.length === 0 && (
         <p className="text-sm text-[var(--color-muted)] text-center mt-10">Waiting for conversation to begin...</p>
       )}
