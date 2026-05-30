@@ -441,7 +441,7 @@ export function useSpeech({
     try {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
-      const res = await fetch('/api/tts', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -25,7 +25,7 @@ export function useVoice({ channel, uid = 0, onRemoteUserJoined, onRemoteUserLef
 
   const join = useCallback(async () => {
     // Fetch token from backend
-    const res = await fetch(`/api/agora/token?channel=${channel}&uid=${uid}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/agora/token?channel=${channel}&uid=${uid}`);
     const { token, appId } = await res.json();
 
     // Create client

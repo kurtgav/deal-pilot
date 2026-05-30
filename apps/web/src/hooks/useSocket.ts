@@ -16,7 +16,7 @@ export function useSocket(sessionId: string, onAgentResponse?: (text: string) =>
       const token = data.session?.access_token;
       if (cancelled) return;
 
-      socket = io({ transports: ['websocket'], auth: { token } });
+      socket = io(import.meta.env.VITE_API_URL || undefined, { auth: { token } });
       socketRef.current = socket;
 
       socket.on('connect', () => {

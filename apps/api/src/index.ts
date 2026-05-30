@@ -13,11 +13,12 @@ import { knowledgeRouter } from './routes/knowledge.js';
 import { adminRouter } from './routes/admin.js';
 import { loadKnowledge } from './services/RAGService.js';
 import { requireAuth } from './middleware/auth.js';
+import { corsOrigins } from './lib/cors.js';
 
 const app = express();
 const httpServer = createServer(app);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
+app.use(cors({ origin: corsOrigins() }));
 app.use(express.json());
 
 // Public endpoints (no auth required)

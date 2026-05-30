@@ -13,6 +13,7 @@ import { generateAgentResponse } from '../services/AIAgent.js';
 import { extractFields } from '../services/FieldExtractor.js';
 import { scoreLeadFromFields } from '../services/LeadScorer.js';
 import { createDeepgramStream } from '../services/DeepgramSTT.js';
+import { corsOrigins } from '../lib/cors.js';
 
 interface SessionRuntime {
   generationInFlight: boolean;
@@ -27,7 +28,7 @@ interface SocketData {
 export function initSocketServer(httpServer: HttpServer) {
   const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(
     httpServer,
-    { cors: { origin: process.env.CORS_ORIGIN || 'http://localhost:5173' } },
+    { cors: { origin: corsOrigins() } },
   );
 
   // Task 2: authenticate every socket connection via the Supabase JWT.
