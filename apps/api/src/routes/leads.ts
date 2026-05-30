@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { LeadStatus } from '@dealpilot/shared';
 import * as repo from '../db/repo.js';
 import { scrapeCompanyUrl } from '../services/WebScraper.js';
+import { denyIfNotOwner } from '../lib/ownership.js';
 
 export const leadsRouter = Router();
 
@@ -35,12 +36,14 @@ leadsRouter.post('/', async (req, res) => {
 });
 
 leadsRouter.get('/:id', async (req, res) => {
+  if (denyIfNotOwner(res, await repo.getLeadOwner(req.params.id), req.user!.id, true)) return;
   const lead = await repo.getLead(req.params.id);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   res.json(lead);
 });
 
 leadsRouter.patch('/:id/status', async (req, res) => {
+  if (denyIfNotOwner(res, await repo.getLeadOwner(req.params.id), req.user!.id, true)) return;
   const lead = await repo.updateLead(req.params.id, { status: req.body.status as LeadStatus });
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   res.json(lead);

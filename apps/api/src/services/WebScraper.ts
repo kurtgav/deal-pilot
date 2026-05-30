@@ -3,6 +3,8 @@
  * text content for AI agent pre-call context.
  */
 
+import { assertSafeUrl } from '../lib/urlGuard.js';
+
 const SCRAPE_TIMEOUT_MS = 8000;
 const MAX_CONTENT_LENGTH = 4000;
 const SUBPAGE_PATHS = ['/about', '/products', '/services', '/solutions', '/pricing', '/about-us'];
@@ -43,10 +45,12 @@ async function fetchPage(url: string): Promise<{ html: string; url: string } | n
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT_MS);
   try {
+    // SSRF guard: reject non-http(s) and hosts resolving to private/internal IPs.
+    await assertSafeUrl(url);
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DealPilot/1.0)', Accept: 'text/html' },
-      redirect: 'follow',
+      redirect: 'manual', // don't auto-follow redirects to internal hosts
     });
     clearTimeout(timeout);
     if (!res.ok) return null;

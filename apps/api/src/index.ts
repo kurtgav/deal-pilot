@@ -14,6 +14,7 @@ import { adminRouter } from './routes/admin.js';
 import { loadKnowledge } from './services/RAGService.js';
 import { requireAuth } from './middleware/auth.js';
 import { corsOrigins } from './lib/cors.js';
+import { rateLimit } from './lib/rateLimit.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,6 +24,9 @@ app.use(express.json());
 
 // Public endpoints (no auth required)
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Rate limit all API traffic (request flood + LLM cost protection).
+app.use('/api', rateLimit({ windowMs: 60_000, max: 120 }));
 
 // Protected endpoints — every route below requires a valid Supabase JWT.
 // Individual routers can layer requirePermission()/requireRole() on top
@@ -35,6 +39,17 @@ app.use('/api/tts', requireAuth, ttsRouter);
 app.use('/api/research', requireAuth, researchRouter);
 app.use('/api/knowledge', requireAuth, knowledgeRouter);
 app.use('/api/admin', requireAuth, adminRouter);
+
+// Global error handler: never leak stack traces to clients; log server-side.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[error]', err?.stack ?? err);
+  if (res.headersSent) return;
+  res.status(err?.status ?? 500).json({ error: 'Internal server error' });
+});
+
+// Don't crash the process on an unhandled async rejection; log and continue.
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
+process.on('uncaughtException', (err) => console.error('[uncaughtException]', err));
 
 initSocketServer(httpServer);
 

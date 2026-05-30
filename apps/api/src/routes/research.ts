@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as repo from '../db/repo.js';
 import { callLLM } from '../services/AIAgent.js';
 import { scrapeCompanyUrl } from '../services/WebScraper.js';
+import { denyIfNotOwner } from '../lib/ownership.js';
 
 export const researchRouter = Router();
 
@@ -11,6 +12,7 @@ export const researchRouter = Router();
  * for pre-call preparation.
  */
 researchRouter.post('/:leadId', async (req, res) => {
+  if (denyIfNotOwner(res, await repo.getLeadOwner(req.params.leadId), req.user!.id, true)) return;
   const lead = await repo.getLead(req.params.leadId);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   if (!lead.companyUrl) return res.status(400).json({ error: 'Lead has no companyUrl' });
@@ -28,6 +30,7 @@ researchRouter.post('/:leadId', async (req, res) => {
  * Returns existing scraped context and generates insights without re-scraping.
  */
 researchRouter.get('/:leadId', async (req, res) => {
+  if (denyIfNotOwner(res, await repo.getLeadOwner(req.params.leadId), req.user!.id, true)) return;
   const lead = await repo.getLead(req.params.leadId);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as repo from '../db/repo.js';
 import { generateHandoff } from '../services/HandoffGenerator.js';
+import { denyIfNotOwner } from '../lib/ownership.js';
 
 export const handoffRouter = Router();
 
@@ -12,6 +13,8 @@ handoffRouter.post('/generate', async (req, res) => {
   try {
     const { sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+
+    if (denyIfNotOwner(res, await repo.getSessionOwner(sessionId), req.user!.id)) return;
 
     const session = await repo.getSession(sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -34,6 +37,7 @@ handoffRouter.post('/generate', async (req, res) => {
 });
 
 handoffRouter.get('/:sessionId', async (req, res) => {
+  if (denyIfNotOwner(res, await repo.getHandoffOwner(req.params.sessionId), req.user!.id)) return;
   const handoff = await repo.getHandoff(req.params.sessionId);
   if (!handoff) return res.status(404).json({ error: 'Handoff not found' });
   res.json(handoff);

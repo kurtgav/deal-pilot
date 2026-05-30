@@ -66,6 +66,12 @@ export async function getLead(id: string): Promise<Lead | null> {
   return data ? toLead(data) : null;
 }
 
+/** Owner of a lead. `null` = seeded demo lead (shared); `undefined` = no such lead. */
+export async function getLeadOwner(id: string): Promise<string | null | undefined> {
+  const { data } = await supabaseAdmin.from('leads').select('user_id').eq('id', id).maybeSingle();
+  return data ? (data.user_id ?? null) : undefined;
+}
+
 export async function createLead(input: Partial<Lead> & { userId: string }): Promise<Lead> {
   const { data, error } = await supabaseAdmin
     .from('leads')
@@ -163,6 +169,12 @@ export async function createHandoff(h: Handoff, userId: string): Promise<Handoff
 export async function getHandoff(sessionId: string): Promise<Handoff | null> {
   const { data } = await supabaseAdmin.from('handoffs').select('*').eq('session_id', sessionId).maybeSingle();
   return data ? toHandoff(data) : null;
+}
+
+/** Owner of a handoff, or null if it doesn't exist. Handoffs always have an owner. */
+export async function getHandoffOwner(sessionId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from('handoffs').select('user_id').eq('session_id', sessionId).maybeSingle();
+  return data?.user_id ?? null;
 }
 
 export async function listHandoffs(userId: string): Promise<Handoff[]> {
