@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { Lead } from '@dealpilot/shared';
 import { api } from '../../lib/api';
 import { toast } from '../../components/Toaster';
-import { Search } from 'lucide-react';
+import NewLeadModal from '../../components/NewLeadModal';
+import { Search, Plus } from 'lucide-react';
 
 const fallbackLeads: Lead[] = [
   { id: 'demo-1', contactName: 'Maya Chen', company: 'NovaStack Labs', industry: 'Developer Tools', initialUseCase: 'API development platform', status: 'sql', createdAt: '2026-05-26T14:30:00Z' },
@@ -21,6 +22,11 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showModal = searchParams.get('new') === '1';
+
+  const openModal = () => setSearchParams({ new: '1' });
+  const closeModal = () => setSearchParams({});
 
   useEffect(() => {
     api.getLeads()
@@ -36,8 +42,23 @@ export default function Leads() {
 
   return (
     <div className="flex gap-6 max-w-7xl">
+      {showModal && (
+        <NewLeadModal
+          onClose={closeModal}
+          onCreated={(lead) => { setLeads((prev) => [lead, ...prev]); toast('Lead created.', 'info'); }}
+        />
+      )}
       {/* Main table */}
       <div className="flex-1 min-w-0">
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-indigo-700"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Lead
+          </button>
+        </div>
         <div className="dash-card">
           <div className="px-5 py-3 border-b border-[#f0f0f0]">
             <div className="relative">

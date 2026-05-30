@@ -174,7 +174,7 @@ export default function DashboardLayout() {
             <h1 className="text-[15px] font-semibold text-slate-900 tracking-[-0.025em]">{title}</h1>
           </div>
           <NavLink
-            to="/app/leads"
+            to="/app/leads?new=1"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-[13px] font-medium hover:bg-indigo-700 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
