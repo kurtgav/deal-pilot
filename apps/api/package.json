@@ -7,6 +7,7 @@
     "build": "tsc && cp -r src/knowledge dist/knowledge",
     "start": "node dist/index.js",
     "seed": "tsx src/db/seed.ts",
+    "eval": "tsx src/eval/run.ts",
     "test": "vitest run"
   },
   "dependencies": {

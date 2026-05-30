@@ -39,6 +39,7 @@ export const api = {
   updateLeadStatus: (id: string, status: string) => request<any>(`/leads/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   startSession: (leadId: string) => request<any>('/sessions/start', { method: 'POST', body: JSON.stringify({ leadId }) }),
   endSession: (id: string) => request<any>(`/sessions/${id}/end`, { method: 'PATCH' }),
+  recordConsent: (id: string) => request<{ consentedAt: string }>(`/sessions/${id}/consent`, { method: 'POST' }),
   getSession: (id: string) => request<any>(`/sessions/${id}`),
   generateHandoff: (sessionId: string) => request<any>('/handoff/generate', { method: 'POST', body: JSON.stringify({ sessionId }) }),
   getHandoff: (sessionId: string) => request<any>(`/handoff/${sessionId}`),

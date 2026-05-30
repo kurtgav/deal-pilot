@@ -24,8 +24,9 @@ export default function CallRoom() {
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [convoActive, setConvoActive] = useState(false);
+  const [consented, setConsented] = useState(false);
 
-  const { transcript, fields, score, muted, speechRate, setSpeechRate, reset } = useSessionStore();
+  const { transcript, fields, score, muted, speechRate, setSpeechRate, reset, lastLatencyMs } = useSessionStore();
 
   // Refs that mirror state so timers/closures always read the latest values.
   const convoActiveRef = useRef(false);
@@ -52,7 +53,7 @@ export default function CallRoom() {
   // default 'browser' uses Web Speech API. Set VITE_STT_TRANSPORT=deepgram to enable.
   const sttTransport = import.meta.env.VITE_STT_TRANSPORT === 'deepgram' ? 'deepgram' : 'browser';
 
-  // TTS + STT — fil-PH lang enables Filipino + Taglish recognition.
+  // TTS + STT — English-only.
   const {
     listening,
     speaking,
@@ -63,25 +64,26 @@ export default function CallRoom() {
     stopSpeaking,
   } = useSpeech({
     onTranscript: handleProspectTurn,
-    lang: 'fil-PH',
+    lang: 'en-US',
     silenceTimeoutMs: 800,
     rate: speechRate,
     mode: 'continuous',
     transport: sttTransport,
     onAudioChunk: (chunk) => sendAudio(chunk),
+    allowBargeIn: true,
   });
 
-  // Socket agent responses are spoken, then the loop closes via the speaking-end effect.
+  // Socket agent responses are spoken. With barge-in the mic stays live during
+  // AI speech so the prospect can interrupt; useSpeech cancels TTS on real speech.
   const { sendTranscript, sendAudio, muteAgent, unmuteAgent } = useSocket(
     sessionId!,
     (aiText) => {
-      // Stop mic immediately when AI is about to speak
-      if (listening) stopListening({ flush: false });
       speak(aiText);
+      // Ensure the mic is open while the AI talks so interruptions are caught.
+      if (convoActiveRef.current && !listening) startListening();
     },
-    (thinking) => {
-      // Stop mic as soon as AI starts generating a response
-      if (thinking && listening) stopListening({ flush: false });
+    () => {
+      // AI started generating — keep listening; do not cut the prospect off.
     },
   );
 
@@ -133,7 +135,18 @@ export default function CallRoom() {
   }, []);
 
   // ------- Conversation controls -------
+  const giveConsent = async () => {
+    try {
+      await api.recordConsent(sessionId!);
+      setConsented(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to record consent');
+    }
+  };
+
   const startConversation = () => {
+    // Golden Rule: no mic capture without explicit prospect consent.
+    if (!consented) return;
     setConvoActive(true);
     convoActiveRef.current = true;
     if (!speaking && !listening) {
@@ -230,12 +243,29 @@ export default function CallRoom() {
             <span className={`text-xs flex items-center gap-1.5 ${loopStatus.text}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${loopStatus.dot} ${convoActive ? 'animate-pulse-dot' : ''}`}></span>
               {loopStatus.label}
+              {lastLatencyMs != null && (
+                <span className="ml-2 text-[var(--color-muted)] font-mono" title="Last AI response latency">
+                  {(lastLatencyMs / 1000).toFixed(1)}s
+                </span>
+              )}
             </span>
           </div>
           <Transcript lines={transcript} />
 
           {/* Controls */}
           <div className="space-y-3 border-t border-[var(--color-border)] bg-white/70 p-4">
+            {!consented && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">
+                <p className="font-medium">You're about to speak with an AI assistant.</p>
+                <p className="mt-0.5 text-amber-800">This conversation is AI-driven and will be transcribed for this session. Your microphone stays off until you agree.</p>
+                <button
+                  onClick={giveConsent}
+                  className="mt-2 rounded-full bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                >
+                  I understand — talk to the AI
+                </button>
+              </div>
+            )}
             {interim && (
               <div className="rounded-2xl border border-green-200 bg-green-50/80 px-3 py-2 text-sm italic text-green-800">
                 Live input: {interim}
@@ -244,13 +274,18 @@ export default function CallRoom() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={convoActive ? stopConversation : startConversation}
+                disabled={!consented}
                 className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
-                  convoActive
+                  !consented
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : convoActive
                     ? 'bg-red-500 text-white shadow-lg shadow-red-200 hover:bg-red-600'
                     : 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-light)]'
                 }`}
                 title={
-                  convoActive
+                  !consented
+                    ? 'Prospect must consent before the microphone can be enabled'
+                    : convoActive
                     ? 'Stop the conversation loop'
                     : 'Start the closed conversation loop - mic auto-cycles between turns'
                 }

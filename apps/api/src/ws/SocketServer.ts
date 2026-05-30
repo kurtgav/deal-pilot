@@ -9,10 +9,11 @@ import type {
 } from '@dealpilot/shared';
 import * as repo from '../db/repo.js';
 import { supabaseAuth } from '../lib/supabase.js';
-import { generateAgentResponse } from '../services/AIAgent.js';
+import { generateAgentResponse, enforceAIDisclosure } from '../services/AIAgent.js';
 import { extractFields } from '../services/FieldExtractor.js';
 import { scoreLeadFromFields } from '../services/LeadScorer.js';
-import { createDeepgramStream } from '../services/DeepgramSTT.js';
+import { speechToText } from '../services/providers.js';
+import type { DeepgramStream } from '../services/DeepgramSTT.js';
 import { corsOrigins } from '../lib/cors.js';
 
 interface SessionRuntime {
@@ -73,7 +74,7 @@ export function initSocketServer(httpServer: HttpServer) {
 
   io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>) => {
     let currentSessionId: string | null = null;
-    let dg: ReturnType<typeof createDeepgramStream> | null = null;
+    let dg: DeepgramStream | null = null;
 
     socket.on('session:join', async ({ sessionId }) => {
       // Task 10: enforce session ownership.
@@ -96,12 +97,13 @@ export function initSocketServer(httpServer: HttpServer) {
             try {
               const { text } = await generateAgentResponse(session, lead,
                 '[SYSTEM: Generate your opening greeting. Reference something specific about their company to show you did your research.]');
-              introText = text;
+              // Golden Rule: guarantee AI disclosure in the first sentence.
+              introText = enforceAIDisclosure(text, lead.contactName.split(' ')[0]);
             } catch {
-              introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer. I've done some research on ${lead.company} and I'm excited to explore how we can help. What's the main challenge you're looking to solve?`;
+              introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI, an AI sales assistant. I've done some research on ${lead.company} and I'm excited to explore how we can help. What's the main challenge you're looking to solve?`;
             }
           } else {
-            introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI — your AI sales engineer for today's call. I'm here to understand your needs and see how we can help. To get started, could you tell me a bit about what your team is working on?`;
+            introText = `Hi ${lead.contactName.split(' ')[0]}, I'm DealPilot AI, an AI sales assistant for today's call. I'm here to understand your needs and see how we can help. To get started, could you tell me a bit about what your team is working on?`;
           }
           const aiLine: TranscriptLine = { speaker: 'AI', text: introText, timestamp: new Date().toISOString() };
           session.transcript.push(aiLine);
@@ -117,7 +119,7 @@ export function initSocketServer(httpServer: HttpServer) {
     socket.on('voice:audio', (chunk: ArrayBuffer) => {
       if (!currentSessionId) return;
       if (!dg) {
-        dg = createDeepgramStream((text) => {
+        dg = speechToText.stream((text) => {
           void handleProspectText(currentSessionId!, text, 'PROSPECT');
         });
       }
@@ -195,7 +197,9 @@ export function initSocketServer(httpServer: HttpServer) {
         if (!lead) break;
 
         try {
+          const llmStart = Date.now();
           const { text: responseText } = await generateAgentResponse(session, lead, text);
+          const llm_ms = Date.now() - llmStart;
           if (r.pendingText) {
             console.log('[AI] Newer prospect turn arrived during generation — discarding stale response');
             continue;
@@ -205,6 +209,7 @@ export function initSocketServer(httpServer: HttpServer) {
           persist(session);
           io.to(sessionId).emit('transcript:update', aiLine);
           io.to(sessionId).emit('agent:response', { text: responseText });
+          io.to(sessionId).emit('latency:update', { sessionId, llm_ms, total_ms: llm_ms });
         } catch (err: any) {
           const message = err?.message || 'AI response failed';
           console.error('[AI] Error:', message);

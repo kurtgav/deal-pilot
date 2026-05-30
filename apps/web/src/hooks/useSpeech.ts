@@ -6,8 +6,7 @@ export type SpeechMode = 'manual' | 'continuous';
 interface UseSpeechOptions {
   onTranscript: (text: string) => void;
   /**
-   * Recognition language. Use 'fil-PH' for Filipino/Tagalog (also recognizes
-   * English/Taglish code-switching) or 'en-US' for English-only.
+   * Recognition language (BCP-47). English-only for this version, e.g. 'en-US'.
    */
   lang?: string;
   /**
@@ -41,6 +40,13 @@ interface UseSpeechOptions {
   transport?: 'browser' | 'deepgram';
   /** Called with each audio chunk when transport === 'deepgram'. */
   onAudioChunk?: (chunk: ArrayBuffer) => void;
+  /**
+   * Barge-in: keep the mic live while the AI speaks so the prospect can
+   * interrupt. When real (non-echo) speech is detected mid-utterance, the AI's
+   * TTS is cancelled and the turn proceeds. Best with headphones — open
+   * speakers can echo the AI voice back into the mic.
+   */
+  allowBargeIn?: boolean;
 }
 
 interface StopOptions {
@@ -54,6 +60,19 @@ const MAX_RATE = 3;
 function clampRate(r: number): number {
   if (Number.isNaN(r)) return 1;
   return Math.min(MAX_RATE, Math.max(MIN_RATE, r));
+}
+
+/** Heuristic echo guard for barge-in: is the heard text just the AI's own
+ *  spoken words bleeding back into the mic? If most heard words appear in the
+ *  AI's current utterance, treat it as echo (not a real interruption). */
+function isLikelyEcho(heard: string, aiText: string): boolean {
+  if (!aiText) return false;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  const heardWords = norm(heard);
+  if (heardWords.length === 0) return true;
+  const aiWords = new Set(norm(aiText));
+  const overlap = heardWords.filter((w) => aiWords.has(w)).length;
+  return overlap / heardWords.length >= 0.6;
 }
 
 // ---------- Voice pre-loading (browser TTS) ----------
@@ -81,44 +100,7 @@ function preloadVoices() {
   }
 }
 
-// ---------- Filipino language helpers (TTS) ----------
-
-/** Detect Filipino/Tagalog text by looking for common Filipino words. */
-function detectFilipino(text: string): boolean {
-  const filipinoIndicators = /\b(ako|ikaw|kayo|kami|tayo|sila|niya|natin|namin|ninyo|nila|ang|ng|sa|mga|hindi|oo|opo|po|kasi|kaya|naman|talaga|paano|bakit|saan|kailan|sino|ano|alin|ilan|magkano|salamat|maganda|magandang|umaga|tanghali|hapon|gabi|gusto|ayaw|pwede|puwede|sige|meron|mayroon|wala|nasaan|tulungan|gawin|ginagawa|gagawin|yung|tapos|kelan|tungkol|kahit|para|pero|kung|noong|ngayon|bukas|kahapon|mahal|mura|presyo|tao|trabaho|kumusta|paalam)\b/i;
-  return filipinoIndicators.test(text);
-}
-
-function preprocessFilipinoForTTS(text: string): string {
-  const phoneticMap: [RegExp, string][] = [
-    [/\bna\b/gi, 'nah'], [/\bsa\b/gi, 'sah'], [/\bng\b/gi, 'nang'],
-    [/\bmga\b/gi, 'manga'], [/\bpo\b/gi, 'poh'], [/\bko\b/gi, 'koh'],
-    [/\bmo\b/gi, 'moh'], [/\bka\b/gi, 'kah'], [/\bba\b/gi, 'bah'],
-    [/\bpa\b/gi, 'pah'], [/\bni\b/gi, 'nee'], [/\bsi\b/gi, 'see'],
-    [/\bat\b/gi, 'aht'], [/\boo\b/gi, 'oh-oh'],
-    [/\bako\b/gi, 'ah-koh'], [/\bito\b/gi, 'ee-toh'], [/\byan\b/gi, 'yahn'],
-    [/\byung\b/gi, 'yoong'], [/\bkasi\b/gi, 'kah-see'], [/\bkami\b/gi, 'kah-mee'],
-    [/\bkayo\b/gi, 'kah-yoh'], [/\btayo\b/gi, 'tah-yoh'], [/\bsila\b/gi, 'see-lah'],
-    [/\bnamin\b/gi, 'nah-meen'], [/\bnatin\b/gi, 'nah-teen'], [/\bninyo\b/gi, 'neen-yoh'],
-    [/\bnila\b/gi, 'nee-lah'], [/\bpara\b/gi, 'pah-rah'], [/\bpero\b/gi, 'peh-roh'],
-    [/\btalaga\b/gi, 'tah-lah-gah'], [/\bnaman\b/gi, 'nah-mahn'], [/\bsige\b/gi, 'see-geh'],
-    [/\bano\b/gi, 'ah-noh'], [/\bpaano\b/gi, 'pah-ah-noh'], [/\bbakit\b/gi, 'bah-kit'],
-    [/\bsaan\b/gi, 'sah-ahn'], [/\bkailan\b/gi, 'kah-ee-lahn'], [/\bsino\b/gi, 'see-noh'],
-    [/\bgusto\b/gi, 'goos-toh'], [/\bmeron\b/gi, 'meh-rohn'], [/\bwala\b/gi, 'wah-lah'],
-    [/\bmaganda\b/gi, 'mah-gahn-dah'], [/\bmagandang\b/gi, 'mah-gahn-dahng'],
-    [/\bsalamat\b/gi, 'sah-lah-maht'], [/\bkumusta\b/gi, 'koo-moos-tah'],
-    [/\bmahal\b/gi, 'mah-hahl'], [/\bngayon\b/gi, 'ngah-yohn'], [/\btapos\b/gi, 'tah-pohs'],
-    [/\bhindu\b/gi, 'heen-dee'], [/\bhindi\b/gi, 'heen-dee'],
-    [/\btulong\b/gi, 'too-lohng'], [/\btulungan\b/gi, 'too-loo-ngahn'],
-    [/\bmaitutulong\b/gi, 'mah-ee-too-too-lohng'],
-    [/\binyo\b/gi, 'een-yoh'], [/\baraw\b/gi, 'ah-rahw'],
-  ];
-  let processed = text;
-  for (const [pattern, replacement] of phoneticMap) {
-    processed = processed.replace(pattern, replacement);
-  }
-  return processed;
-}
+// ---------- Mic permission ----------
 
 /** Pre-warm mic permission with explicit echo/noise constraints. */
 async function ensureMicPermission(): Promise<void> {
@@ -149,10 +131,13 @@ export function useSpeech({
   mode = 'manual',
   transport = 'browser',
   onAudioChunk,
+  allowBargeIn = false,
 }: UseSpeechOptions) {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [interim, setInterim] = useState('');
+  const allowBargeInRef = useRef(allowBargeIn);
+  useEffect(() => { allowBargeInRef.current = allowBargeIn; }, [allowBargeIn]);
 
   // STT refs
   const recognitionRef = useRef<any>(null);
@@ -177,8 +162,8 @@ export function useSpeech({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rateRef = useRef(clampRate(rate));
   const lastSpokenTextRef = useRef<string>('');
-  const lastLanguageRef = useRef<'en' | 'fil'>('en');
   const speakingRef = useRef(false);
+  const stopSpeakingRef = useRef<() => void>(() => {});
 
   // Pre-load voices once on first mount of the hook anywhere in the app.
   useEffect(() => { preloadVoices(); }, []);
@@ -249,6 +234,15 @@ export function useSpeech({
     if (!silenceTimeoutMs) return;
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
+      // In continuous mode, silence only ends the TURN if the prospect has
+      // actually said something. With an empty buffer (e.g. they haven't
+      // spoken yet after Start), keep listening instead of killing the mic —
+      // otherwise the loop gets stuck on "Processing…" forever.
+      if (modeRef.current === 'continuous' && !bufferedTextRef.current.trim()) {
+        console.log('[STT] Silence with empty buffer — staying live');
+        armSilenceTimer();
+        return;
+      }
       console.log('[STT] Silence detected — auto-stopping mic');
       stopListening({ flush: true });
     }, silenceTimeoutMs);
@@ -289,7 +283,8 @@ export function useSpeech({
     }
 
     // Don't open mic while AI is speaking — would echo into STT.
-    if (speakingRef.current) {
+    // Exception: barge-in mode keeps the mic live so the prospect can interrupt.
+    if (speakingRef.current && !allowBargeInRef.current) {
       console.log('[STT] startListening called while AI is speaking — deferring');
       return;
     }
@@ -306,7 +301,7 @@ export function useSpeech({
     bufferedTextRef.current = '';
 
     const recognition = new SpeechRecognition();
-    recognition.lang = (lang === 'fil-PH' || lang === 'tl-PH') ? 'fil-PH' : lang;
+    recognition.lang = lang;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -332,6 +327,16 @@ export function useSpeech({
 
       if (interimText || finalText) clearSilenceTimer();
       if (interimText) setInterim(interimText);
+
+      // Barge-in: if the AI is speaking and the prospect says something that
+      // isn't just the AI's own voice echoing back, cancel the AI immediately.
+      if (allowBargeInRef.current && speakingRef.current) {
+        const heard = (finalText || interimText).trim();
+        if (heard.length >= 4 && !isLikelyEcho(heard, lastSpokenTextRef.current)) {
+          console.log('[STT] Barge-in detected — cancelling AI speech');
+          stopSpeakingRef.current();
+        }
+      }
 
       if (finalText.trim()) {
         const trimmed = finalText.trim();
@@ -441,7 +446,6 @@ export function useSpeech({
 
   const speakWithElevenLabs = useCallback(async (
     text: string,
-    language: 'en' | 'fil',
   ): Promise<boolean> => {
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -455,7 +459,7 @@ export function useSpeech({
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text, language }),
+        body: JSON.stringify({ text }),
         signal: ctrl.signal,
       });
       clearTimeout(t);
@@ -519,7 +523,7 @@ export function useSpeech({
 
   // ---------- TTS: browser SpeechSynthesis (fallback) ----------
 
-  const speakWithBrowser = useCallback(async (text: string, isFilipino: boolean) => {
+  const speakWithBrowser = useCallback(async (text: string) => {
     const synth = window.speechSynthesis;
     if (!synth) return;
 
@@ -532,45 +536,17 @@ export function useSpeech({
       voices = synth.getVoices();
     }
 
-    let preferred: SpeechSynthesisVoice | undefined;
-    let usePhoneticFix = false;
+    const preferred = voices.find((v) =>
+      v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Natural'),
+    ) || voices.find((v) => v.lang.startsWith('en'));
 
-    if (isFilipino) {
-      preferred = voices.find((v) =>
-        v.name.toLowerCase().includes('google') &&
-        (v.lang === 'fil-PH' || v.lang === 'tl-PH' || v.name.toLowerCase().includes('filipino')),
-      );
-      if (!preferred) {
-        preferred = voices.find((v) =>
-          v.lang === 'fil-PH' || v.lang === 'tl-PH' ||
-          v.name.toLowerCase().includes('filipino') ||
-          v.name.toLowerCase().includes('tagalog'),
-        );
-      }
-      if (!preferred) {
-        preferred = voices.find((v) => v.lang.startsWith('fil') || v.lang.startsWith('tl'));
-      }
-      if (!preferred) {
-        usePhoneticFix = true;
-        preferred = voices.find((v) => v.name.includes('Google') && v.lang.startsWith('en'))
-          || voices.find((v) => v.lang.startsWith('en'));
-        console.warn('[TTS] No Filipino voice available — using phonetic fallback.');
-      }
-    } else {
-      preferred = voices.find((v) =>
-        v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Natural'),
-      ) || voices.find((v) => v.lang.startsWith('en'));
-    }
-
-    const finalText = usePhoneticFix ? preprocessFilipinoForTTS(text) : text;
-
-    const utterance = new SpeechSynthesisUtterance(finalText);
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = rateRef.current;
-    utterance.pitch = isFilipino ? 1.1 : 1.0;
-    utterance.lang = usePhoneticFix ? 'en-US' : (isFilipino ? 'fil-PH' : lang);
+    utterance.pitch = 1.0;
+    utterance.lang = lang;
     if (preferred) {
       utterance.voice = preferred;
-      console.log('[TTS] Voice:', preferred.name, preferred.lang, usePhoneticFix ? '(phonetic)' : '(native)');
+      console.log('[TTS] Voice:', preferred.name, preferred.lang);
     }
 
     utterance.onstart = () => { speakingRef.current = true; setSpeaking(true); };
@@ -585,12 +561,8 @@ export function useSpeech({
   const speak = useCallback(async (text: string) => {
     if (!text?.trim()) return;
 
-    const isFilipino = detectFilipino(text);
-    const language: 'en' | 'fil' = isFilipino ? 'fil' : 'en';
     lastSpokenTextRef.current = text;
-    lastLanguageRef.current = language;
-
-    console.log(`[TTS] Speaking (${language}):`, text.slice(0, 80));
+    console.log('[TTS] Speaking:', text.slice(0, 80));
 
     try { window.speechSynthesis?.cancel(); } catch {}
     if (audioRef.current) {
@@ -600,12 +572,12 @@ export function useSpeech({
 
     // Skip the network round-trip entirely once we know the server has no TTS.
     if (elevenLabsAvailable !== false) {
-      const success = await speakWithElevenLabs(text, language);
+      const success = await speakWithElevenLabs(text);
       if (success) return;
     }
 
     console.log('[TTS] Using browser fallback');
-    await speakWithBrowser(text, isFilipino);
+    await speakWithBrowser(text);
   }, [speakWithElevenLabs, speakWithBrowser]);
 
   const stopSpeaking = useCallback(() => {
@@ -619,6 +591,9 @@ export function useSpeech({
     lastSpokenTextRef.current = '';
     setSpeaking(false);
   }, []);
+
+  // Keep ref fresh so the STT onresult handler can trigger barge-in.
+  useEffect(() => { stopSpeakingRef.current = stopSpeaking; }, [stopSpeaking]);
 
   /** Click-to-interrupt barge-in: stop AI immediately. Caller can then start mic. */
   const interruptSpeech = useCallback(() => {
@@ -643,9 +618,8 @@ export function useSpeech({
     if (speakingRef.current && lastSpokenTextRef.current && window.speechSynthesis) {
       console.log(`[TTS] Rate changed ${prev}x → ${next}x — restarting browser utterance`);
       const text = lastSpokenTextRef.current;
-      const isFilipino = lastLanguageRef.current === 'fil';
       try { window.speechSynthesis.cancel(); } catch {}
-      void speakWithBrowser(text, isFilipino);
+      void speakWithBrowser(text);
     }
   }, [rate, speakWithBrowser]);
 

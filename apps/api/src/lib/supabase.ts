@@ -28,14 +28,14 @@ if (!serviceRoleKey) {
   );
 }
 
-export const supabaseAuth = createClient(url ?? '', anonKey ?? '', {
+export const supabaseAuth = createClient(url ?? '', anonKey ?? 'anon-key-missing', {
   auth: { persistSession: false, autoRefreshToken: false },
   realtime: { transport: ws as any },
 });
 
 export const supabaseAdmin = createClient(
   url ?? '',
-  serviceRoleKey ?? anonKey ?? '',
+  serviceRoleKey ?? anonKey ?? 'service-key-missing',
   {
     auth: { persistSession: false, autoRefreshToken: false },
     realtime: { transport: ws as any },

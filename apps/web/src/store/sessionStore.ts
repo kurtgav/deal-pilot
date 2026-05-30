@@ -33,11 +33,13 @@ interface SessionState {
   score: number;
   muted: boolean;
   speechRate: SpeechRate;
+  lastLatencyMs: number | null;
   addTranscriptLine: (line: TranscriptLine) => void;
   updateFields: (delta: Partial<ExtractedSalesFields>) => void;
   setScore: (score: number) => void;
   setMuted: (muted: boolean) => void;
   setSpeechRate: (rate: SpeechRate) => void;
+  setLatency: (ms: number) => void;
   reset: () => void;
 }
 
@@ -49,6 +51,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   score: 0,
   muted: false,
   speechRate: loadSpeechRate(),
+  lastLatencyMs: null,
   addTranscriptLine: (line) => set((s) => ({ transcript: [...s.transcript, line] })),
   updateFields: (delta) => set((s) => ({
     fields: {
@@ -65,6 +68,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     persistSpeechRate(rate);
     set({ speechRate: rate });
   },
+  setLatency: (ms) => set({ lastLatencyMs: ms }),
   // reset preserves speechRate (it's a user preference, not call state)
-  reset: () => set((s) => ({ transcript: [], fields: { ...emptyFields }, score: 0, muted: false, speechRate: s.speechRate })),
+  reset: () => set((s) => ({ transcript: [], fields: { ...emptyFields }, score: 0, muted: false, lastLatencyMs: null, speechRate: s.speechRate })),
 }));

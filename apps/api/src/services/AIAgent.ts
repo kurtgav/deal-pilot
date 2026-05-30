@@ -1,6 +1,6 @@
 import type { CallSession, Lead, ExtractedSalesFields, TranscriptLine } from '@dealpilot/shared';
 import {
-  retrieveProductInfo,
+  assessProductGrounding,
   retrieveObjectionRebuttal,
   getDiscoveryQuestions,
 } from './RAGService.js';
@@ -81,13 +81,6 @@ function delay(ms: number): Promise<void> {
 
 // ---------- Language detection (server side, mirror of frontend) ----------
 
-const FILIPINO_MARKERS =
-  /\b(ako|ikaw|kayo|kami|tayo|sila|niya|natin|namin|ninyo|nila|ang|ng|sa|mga|hindi|oo|opo|po|kasi|kaya|naman|talaga|paano|bakit|saan|kailan|sino|ano|alin|ilan|magkano|salamat|maganda|magandang|kumusta|paalam|gusto|ayaw|pwede|puwede|sige|meron|mayroon|wala|nasaan|tulungan|tungkol|kahit|para|pero|kung|noong|ngayon|bukas|kahapon|mahal|mura|presyo|trabaho)\b/i;
-
-function detectLanguage(text: string): 'en' | 'fil' {
-  return FILIPINO_MARKERS.test(text) ? 'fil' : 'en';
-}
-
 // ---------- System prompt ----------
 
 const SYSTEM_PROMPT = `You are DealPilot AI, an AI Sales Engineer on a live voice discovery call. You are professional, concise, and technically knowledgeable.
@@ -99,7 +92,6 @@ GOLDEN RULES (non-negotiable):
 4. If a question is outside your knowledge, say: "That's a great question — I'll flag this for our solutions team to follow up on."
 5. Keep responses to 1-3 short sentences. This is voice, not text.
 6. Be conversational. No bullet points, no numbered lists, no markdown.
-7. If the prospect speaks Filipino/Tagalog, respond in natural Filipino (Taglish is fine). If they speak English, respond in English.
 
 PERSONA: Friendly, sharp, efficient. Like a senior solutions engineer who respects people's time.
 
@@ -122,6 +114,34 @@ CALL STRUCTURE:
 
 // ---------- Public API ----------
 
+/** Spoken when a product/technical question cannot be grounded in the
+ *  knowledge base (Golden Rule #1 — never fabricate). */
+export const ESCALATION_PHRASE =
+  "That's a great question — I'll flag this for our solutions team to follow up on.";
+
+/** Golden Rule: the AI must disclose it is an AI in the FIRST sentence of every
+ *  session. Enforce in code, not just the prompt — if a generated intro lacks
+ *  a disclosure, prepend one rather than trusting the model. */
+const DISCLOSURE_PATTERN = /\b(ai|a\.i\.|artificial intelligence|automated assistant|virtual assistant)\b/i;
+
+export function enforceAIDisclosure(intro: string, contactFirstName?: string): string {
+  const firstSentence = intro.split(/(?<=[.!?])\s/)[0] ?? intro;
+  if (DISCLOSURE_PATTERN.test(firstSentence)) return intro;
+  const hi = contactFirstName ? `Hi ${contactFirstName}, ` : 'Hi, ';
+  return `${hi}I'm DealPilot AI, an AI sales assistant. ${intro}`.trim();
+}
+
+/** Heuristic: does the utterance look like a product/technical question (the
+ *  only kind the grounding gate should block)? Discovery statements are not
+ *  gated, so we never escalate when the prospect is just describing their needs. */
+export function isProductQuestion(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (t.includes('?')) return true;
+  return /\b(do|does|can|could|is|are|what|how|which|when|will|would|support|offer|integrat|price|pricing|cost|plan|sla|uptime|comply|compliance)\b/.test(
+    t,
+  );
+}
+
 export async function generateAgentResponse(
   session: CallSession,
   lead: Lead,
@@ -133,11 +153,19 @@ export async function generateAgentResponse(
     .map((l) => `${l.speaker}: ${l.text}`)
     .join('\n');
 
-  const language = detectLanguage(latestInput);
-  const productContext = retrieveProductInfo(latestInput);
+  const grounding = assessProductGrounding(latestInput);
   const objectionRebuttal = retrieveObjectionRebuttal(latestInput);
   const discoveryQs = getDiscoveryQuestions(stage);
 
+  // GROUNDING GATE (Golden Rule #1): if the prospect asks a product/technical
+  // question we cannot ground in the knowledge base, escalate instead of
+  // letting the LLM fabricate pricing/features/SLAs. Non-questions (discovery
+  // statements) are not gated — only questions can be "answered" wrongly.
+  if (!grounding.grounded && !objectionRebuttal && isProductQuestion(latestInput)) {
+    return { text: ESCALATION_PHRASE, stage };
+  }
+
+  const productContext = grounding.context;
   const ragSections: string[] = [`PRODUCT KNOWLEDGE (top matches):\n${productContext}`];
   if (objectionRebuttal) {
     ragSections.push(`OBJECTION DETECTED — SUGGESTED REBUTTAL:\n${objectionRebuttal}`);
@@ -149,11 +177,6 @@ export async function generateAgentResponse(
         .join('\n')}`,
     );
   }
-
-  const languageInstruction =
-    language === 'fil'
-      ? '\n\nThe prospect is speaking Filipino/Tagalog. Reply in natural Filipino or Taglish — keep it short and conversational.'
-      : '';
 
   const companyContext = lead.scrapedContext
     ? `\nPROSPECT'S COMPANY RESEARCH (scraped from ${lead.companyUrl}):\n${lead.scrapedContext}\n\nBased on this research, their likely needs include: integration with their existing platform, scalability for their user base, and solutions that fit their ${lead.industry || 'technology'} vertical.\n`
@@ -173,7 +196,7 @@ ${ragSections.join('\n\n')}
 CONVERSATION (most recent first is at bottom):
 ${history}
 
-PROSPECT just said: "${latestInput}"${languageInstruction}
+PROSPECT just said: "${latestInput}"
 
 Respond naturally as DealPilot AI. Reference their company context when relevant. 1-3 short sentences. No markdown.`;
 

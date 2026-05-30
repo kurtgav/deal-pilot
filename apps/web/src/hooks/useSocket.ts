@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 
 export function useSocket(sessionId: string, onAgentResponse?: (text: string) => void, onAgentThinking?: (thinking: boolean) => void) {
   const socketRef = useRef<Socket | null>(null);
-  const { addTranscriptLine, updateFields, setScore, setMuted } = useSessionStore();
+  const { addTranscriptLine, updateFields, setScore, setMuted, setLatency } = useSessionStore();
 
   useEffect(() => {
     let socket: Socket | null = null;
@@ -28,6 +28,7 @@ export function useSocket(sessionId: string, onAgentResponse?: (text: string) =>
       socket.on('score:update', ({ score }) => setScore(score));
       socket.on('agent:response', ({ text }) => onAgentResponse?.(text));
       socket.on('agent:thinking', ({ thinking }) => onAgentThinking?.(thinking));
+      socket.on('latency:update', ({ total_ms }) => { if (typeof total_ms === 'number') setLatency(total_ms); });
     })();
 
     return () => { cancelled = true; socket?.disconnect(); };
