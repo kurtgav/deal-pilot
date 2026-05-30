@@ -20,4 +20,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:all
+        env:
+          # Placeholder values: CI only verifies the bundle compiles. Real
+          # values are injected by Vercel at deploy time, where the
+          # vite.config.ts production guard still enforces their presence.
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
       - run: pnpm -r test
