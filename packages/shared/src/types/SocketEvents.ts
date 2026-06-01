@@ -1,4 +1,15 @@
-import type { TranscriptLine, ExtractedSalesFields } from './Session.js';
+import type { TranscriptLine, ExtractedSalesFields, SessionStatus } from './Session.js';
+
+/** Full call state replayed to a (re)joining client so it rehydrates from the
+ *  DB-backed source of truth after a socket reconnect or page refresh. */
+export interface SessionSnapshot {
+  sessionId: string;
+  transcript: TranscriptLine[];
+  fields: ExtractedSalesFields;
+  score: number;
+  muted: boolean;
+  status: SessionStatus;
+}
 
 /** Per-turn latency breakdown (ms). Fields are optional because different
  *  stages are measured in different places (STT/TTS client-side, LLM server). */
@@ -20,6 +31,7 @@ export interface ClientToServerEvents {
 }
 
 export interface ServerToClientEvents {
+  'state:snapshot': (payload: SessionSnapshot) => void;
   'transcript:update': (payload: TranscriptLine) => void;
   'fields:update': (payload: Partial<ExtractedSalesFields>) => void;
   'score:update': (payload: { score: number }) => void;

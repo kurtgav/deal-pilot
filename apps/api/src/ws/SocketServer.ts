@@ -6,6 +6,7 @@ import type {
   ExtractedSalesFields,
   TranscriptLine,
   CallSession,
+  SessionSnapshot,
 } from '@dealpilot/shared';
 import * as repo from '../db/repo.js';
 import { supabaseAuth } from '../lib/supabase.js';
@@ -89,7 +90,14 @@ export function initSocketServer(httpServer: HttpServer) {
       socket.join(sessionId);
 
       const session = await loadSession(sessionId);
-      if (session && session.status === 'active' && session.transcript.length === 0) {
+      if (!session) return;
+
+      // Replay full state to the (re)joining socket so a reconnect or page
+      // refresh rehydrates from the DB-backed source of truth (reliability NFR:
+      // a call survives a socket reconnect without data loss).
+      socket.emit('state:snapshot', buildSessionSnapshot(session, mutedSessions.has(sessionId)));
+
+      if (session.status === 'active' && session.transcript.length === 0) {
         const lead = await repo.getLead(session.leadId);
         if (lead) {
           let introText: string;
@@ -226,6 +234,19 @@ export function initSocketServer(httpServer: HttpServer) {
 }
 
 // ---------- Helpers ----------
+
+/** Build the full state snapshot replayed to a (re)joining client. Pure so it
+ *  can be unit-tested without a live socket. */
+export function buildSessionSnapshot(s: CallSession, muted: boolean): SessionSnapshot {
+  return {
+    sessionId: s.id,
+    transcript: s.transcript,
+    fields: s.extractedFields,
+    score: s.leadScore ?? 0,
+    muted,
+    status: s.status,
+  };
+}
 
 function mergeFields(target: ExtractedSalesFields, delta: Partial<ExtractedSalesFields>): void {
   if (delta.industry) target.industry = delta.industry;

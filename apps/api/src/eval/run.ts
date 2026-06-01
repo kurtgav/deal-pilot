@@ -14,7 +14,11 @@ import productsJson from '../knowledge/products.json' with { type: 'json' };
 import objectionsJson from '../knowledge/objections.json' with { type: 'json' };
 import discoveryJson from '../knowledge/discovery.json' with { type: 'json' };
 import { loadKnowledgeFromObjects, assessProductGrounding } from '../services/RAGService.js';
+import { createEmbeddingProvider, cosineSimilarity, type EmbeddingKind } from '../services/embeddings.js';
 import { QA_CASES, EXTRACTION_CASES } from './dataset.js';
+
+interface EvalProduct { name: string; price: string; features: string[]; bestFor: string; integrations: string[]; }
+let kbProducts: EvalProduct[] = [];
 
 function loadKB() {
   const products = (productsJson as any[]).map((p) => ({
@@ -22,7 +26,49 @@ function loadKB() {
   }));
   const objections = (objectionsJson as any[]).map((o) => ({ objection: o.objection, rebuttal: o.rebuttal }));
   const discovery = ((discoveryJson as any).stages ?? []).map((d: any) => ({ stage: d.stage, questions: d.questions ?? [] }));
+  kbProducts = products;
   loadKnowledgeFromObjects(products, objections, discovery);
+}
+
+// ---------- Provider A/B (grounding) ----------
+
+const GROUNDING_THRESHOLD = 0.11; // mirrors RAGService
+const productDocText = (p: EvalProduct) =>
+  [p.name, p.bestFor, p.features.join(' '), p.integrations.join(' '), p.price].join(' ');
+
+/** Score the grounding metric for one embedding provider, prewarming the KB
+ *  docs + eval queries so a hosted (async) provider serves embed() from cache. */
+async function scoreProvider(kind: EmbeddingKind) {
+  const provider = createEmbeddingProvider(kind);
+  const docs = kbProducts.map(productDocText);
+  provider.fit(docs);
+  await provider.prewarm?.([...docs, ...QA_CASES.map((c) => c.q)]);
+  const docVecs = docs.map((d) => provider.embed(d));
+
+  let inKbAnswered = 0, inKbTotal = 0, hallucinated = 0, outKbTotal = 0;
+  for (const c of QA_CASES) {
+    const qVec = provider.embed(c.q);
+    const top = Math.max(0, ...docVecs.map((dv) => cosineSimilarity(qVec, dv)));
+    const grounded = top >= GROUNDING_THRESHOLD;
+    if (c.inKB) { inKbTotal++; if (grounded) inKbAnswered++; }
+    else { outKbTotal++; if (grounded) hallucinated++; }
+  }
+  return {
+    recall: inKbTotal ? inKbAnswered / inKbTotal : 0,
+    hallucination: outKbTotal ? hallucinated / outKbTotal : 0,
+  };
+}
+
+async function runComparison() {
+  console.log('── GROUNDING A/B (tfidf vs hosted) ────────────');
+  for (const kind of ['tfidf', 'hosted'] as EmbeddingKind[]) {
+    const r = await scoreProvider(kind);
+    console.log(
+      `  ${kind.padEnd(7)}: in-KB recall ${(r.recall * 100).toFixed(1)}%  ` +
+        `hallucination ${(r.hallucination * 100).toFixed(1)}%`,
+    );
+  }
+  console.log('  (hosted falls back to tfidf when NVIDIA_NIM_API_KEY / EMBEDDING_PROVIDER not set)');
 }
 
 function runGrounding() {
@@ -108,6 +154,10 @@ async function main() {
   console.log('\n=== DealPilot eval scoreboard ===\n');
   runGrounding();
   console.log('');
+  if (process.env.EVAL_COMPARE === '1') {
+    await runComparison();
+    console.log('');
+  }
   await runExtraction();
   console.log('\n=================================\n');
 }

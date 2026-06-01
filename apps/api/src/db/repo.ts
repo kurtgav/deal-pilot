@@ -1,5 +1,6 @@
 import type { Lead, CallSession, Handoff, LeadStatus } from '@dealpilot/shared';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { redactTranscript } from '../lib/pii.js';
 
 /**
  * Data access layer backed by Supabase Postgres. The API server uses the
@@ -123,10 +124,13 @@ export async function getSessionOwner(id: string): Promise<string | null> {
 }
 
 export async function saveSession(s: CallSession): Promise<void> {
+  // Optional redaction-at-rest (Golden Rule #4): when PII_REDACTION=true, the
+  // verbatim transcript is never written; emails/phones are masked first.
+  const transcript = process.env.PII_REDACTION === 'true' ? redactTranscript(s.transcript) : s.transcript;
   await supabaseAdmin
     .from('call_sessions')
     .update({
-      transcript: s.transcript,
+      transcript,
       extracted_fields: s.extractedFields,
       lead_score: s.leadScore ?? null,
       status: s.status,
@@ -143,6 +147,24 @@ export async function endSession(id: string): Promise<CallSession | null> {
     .select('*')
     .maybeSingle();
   return data ? toSession(data) : null;
+}
+
+/**
+ * Retention sweep (Golden Rule #4): empty the verbatim transcript of any ended
+ * session whose review window has elapsed (ended_at < cutoff). The handoff's
+ * exported business artifacts (summary, crm_json) are retained; only the raw
+ * PII-bearing transcript is purged. Returns the number of sessions purged.
+ */
+export async function purgeExpiredTranscripts(cutoffIso: string): Promise<number> {
+  const { data, error } = await supabaseAdmin
+    .from('call_sessions')
+    .update({ transcript: [] })
+    .eq('status', 'ended')
+    .lt('ended_at', cutoffIso)
+    .neq('transcript', '[]')
+    .select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 // ---------- handoffs ----------

@@ -34,12 +34,14 @@ interface SessionState {
   muted: boolean;
   speechRate: SpeechRate;
   lastLatencyMs: number | null;
+  latencySamples: number[];
   addTranscriptLine: (line: TranscriptLine) => void;
   updateFields: (delta: Partial<ExtractedSalesFields>) => void;
   setScore: (score: number) => void;
   setMuted: (muted: boolean) => void;
   setSpeechRate: (rate: SpeechRate) => void;
   setLatency: (ms: number) => void;
+  hydrate: (snapshot: { transcript: TranscriptLine[]; fields: ExtractedSalesFields; score: number; muted: boolean }) => void;
   reset: () => void;
 }
 
@@ -52,6 +54,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   muted: false,
   speechRate: loadSpeechRate(),
   lastLatencyMs: null,
+  latencySamples: [],
   addTranscriptLine: (line) => set((s) => ({ transcript: [...s.transcript, line] })),
   updateFields: (delta) => set((s) => ({
     fields: {
@@ -68,7 +71,15 @@ export const useSessionStore = create<SessionState>((set) => ({
     persistSpeechRate(rate);
     set({ speechRate: rate });
   },
-  setLatency: (ms) => set({ lastLatencyMs: ms }),
+  setLatency: (ms) => set((s) => ({ lastLatencyMs: ms, latencySamples: [...s.latencySamples, ms] })),
+  // hydrate replaces call state wholesale from a server snapshot (reconnect /
+  // refresh). Snapshot fields are absolute, so we set rather than append.
+  hydrate: (snapshot) => set({
+    transcript: snapshot.transcript,
+    fields: { ...emptyFields, ...snapshot.fields },
+    score: snapshot.score,
+    muted: snapshot.muted,
+  }),
   // reset preserves speechRate (it's a user preference, not call state)
-  reset: () => set((s) => ({ transcript: [], fields: { ...emptyFields }, score: 0, muted: false, lastLatencyMs: null, speechRate: s.speechRate })),
+  reset: () => set((s) => ({ transcript: [], fields: { ...emptyFields }, score: 0, muted: false, lastLatencyMs: null, latencySamples: [], speechRate: s.speechRate })),
 }));

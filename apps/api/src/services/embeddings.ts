@@ -18,8 +18,14 @@
 export interface EmbeddingProvider {
   /** Learn any corpus statistics (vocabulary, IDF) from the KB documents. */
   fit(docs: string[]): void;
-  /** Map text to a sparse vector (token -> weight). */
+  /** Map text to a sparse vector (token -> weight). MUST be synchronous so the
+   *  retrieval path adds no latency to a voice turn. */
   embed(text: string): Map<string, number>;
+  /** Optionally pre-fetch and cache vectors for texts known ahead of time (KB
+   *  docs at load, and — for hosted models — the queries an eval will ask), so
+   *  the synchronous embed() can serve them from cache. No-op for offline
+   *  providers. */
+  prewarm?(texts: string[]): Promise<void>;
 }
 
 const STOPWORDS = new Set([
@@ -79,8 +85,72 @@ class TfIdfProvider implements EmbeddingProvider {
   }
 }
 
-export function createEmbeddingProvider(): EmbeddingProvider {
-  return new TfIdfProvider();
+export type EmbeddingKind = 'tfidf' | 'hosted';
+
+export function createEmbeddingProvider(kind?: EmbeddingKind): EmbeddingProvider {
+  const k = kind ?? (process.env.EMBEDDING_PROVIDER === 'hosted' ? 'hosted' : 'tfidf');
+  return k === 'hosted' ? new HostedEmbeddingProvider() : new TfIdfProvider();
+}
+
+/**
+ * Hosted semantic embeddings via NVIDIA NIM's OpenAI-compatible /embeddings
+ * endpoint. Dense vectors give better in-KB recall than lexical TF-IDF without
+ * weakening the no-fabrication guarantee.
+ *
+ * Keeps the synchronous embed() contract: prewarm() pre-fetches and caches
+ * vectors for known texts (KB docs at load + eval queries); embed() serves
+ * from that cache and falls back to TF-IDF for any uncached text, so the voice
+ * turn never blocks on the network.
+ */
+const NIM_EMBED_URL = 'https://integrate.api.nvidia.com/v1/embeddings';
+const EMBED_MODEL = process.env.NIM_EMBED_MODEL || 'nvidia/nv-embedqa-e5-v5';
+
+class HostedEmbeddingProvider implements EmbeddingProvider {
+  private fallback = new TfIdfProvider();
+  private cache = new Map<string, Map<string, number>>();
+
+  fit(docs: string[]): void {
+    this.fallback.fit(docs);
+  }
+
+  async prewarm(texts: string[]): Promise<void> {
+    const missing = texts.filter((t) => t.trim() && !this.cache.has(t));
+    if (missing.length === 0) return;
+    const vecs = await embedRemote(missing);
+    if (!vecs) return; // unconfigured / failed → embed() uses TF-IDF fallback
+    missing.forEach((t, i) => this.cache.set(t, denseToSparse(vecs[i])));
+  }
+
+  embed(text: string): Map<string, number> {
+    return this.cache.get(text) ?? this.fallback.embed(text);
+  }
+}
+
+/** Represent a dense vector as the sparse Map the seam uses (index -> value),
+ *  so cosineSimilarity works unchanged across both providers. */
+function denseToSparse(v: number[]): Map<string, number> {
+  const m = new Map<string, number>();
+  v.forEach((x, i) => { if (x !== 0) m.set(String(i), x); });
+  return m;
+}
+
+/** Batch-embed via the hosted endpoint. Returns null when unconfigured or on
+ *  any failure, so callers transparently fall back to the offline vectorizer. */
+async function embedRemote(input: string[]): Promise<number[][] | null> {
+  const apiKey = process.env.NVIDIA_NIM_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(NIM_EMBED_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: EMBED_MODEL, input, input_type: 'query' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.data ?? []).map((d: any) => d.embedding as number[]);
+  } catch {
+    return null;
+  }
 }
 
 export function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {

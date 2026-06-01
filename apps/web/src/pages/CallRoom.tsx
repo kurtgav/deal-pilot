@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { CallSession, Lead } from '@dealpilot/shared';
+import { pickSttTransport, latencyStats } from '@dealpilot/shared';
 import { api } from '../lib/api';
 import { useSocket } from '../hooks/useSocket';
 import { useSpeech } from '../hooks/useSpeech';
@@ -26,7 +27,7 @@ export default function CallRoom() {
   const [convoActive, setConvoActive] = useState(false);
   const [consented, setConsented] = useState(false);
 
-  const { transcript, fields, score, muted, speechRate, setSpeechRate, reset, lastLatencyMs } = useSessionStore();
+  const { transcript, fields, score, muted, speechRate, setSpeechRate, reset, lastLatencyMs, latencySamples } = useSessionStore();
 
   // Refs that mirror state so timers/closures always read the latest values.
   const convoActiveRef = useRef(false);
@@ -49,9 +50,12 @@ export default function CallRoom() {
     }
   };
 
-  // STT transport: 'deepgram' streams mic audio to the server (cross-browser);
-  // default 'browser' uses Web Speech API. Set VITE_STT_TRANSPORT=deepgram to enable.
-  const sttTransport = import.meta.env.VITE_STT_TRANSPORT === 'deepgram' ? 'deepgram' : 'browser';
+  // STT transport: cross-browser. Web Speech API is Chrome-only, so on Safari/
+  // Firefox we fall back to streaming mic audio to the server's Deepgram
+  // pipeline. VITE_STT_TRANSPORT ('browser'|'deepgram') forces a choice.
+  const hasWebSpeech =
+    typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const sttTransport = pickSttTransport(hasWebSpeech, import.meta.env.VITE_STT_TRANSPORT);
 
   // TTS + STT — English-only.
   const {
@@ -168,6 +172,14 @@ export default function CallRoom() {
     clearResumeTimer();
     stopListening({ flush: false });
     stopSpeaking();
+    // Report measured AI-response latency for this call vs the 1.5s NFR target.
+    const stats = latencyStats(latencySamples);
+    if (stats.count > 0) {
+      console.log(
+        `[latency] n=${stats.count} p50=${stats.p50}ms p95=${stats.p95}ms ` +
+          `within 1.5s target: ${(stats.withinTarget * 100).toFixed(0)}%`,
+      );
+    }
     try {
       await api.endSession(sessionId!);
       await api.generateHandoff(sessionId!);
@@ -248,6 +260,18 @@ export default function CallRoom() {
                   {(lastLatencyMs / 1000).toFixed(1)}s
                 </span>
               )}
+              {latencySamples.length > 1 && (() => {
+                const st = latencyStats(latencySamples);
+                const ok = st.p95 <= 1500;
+                return (
+                  <span
+                    className={`ml-2 font-mono ${ok ? 'text-[var(--color-muted)]' : 'text-amber-600'}`}
+                    title={`AI response latency over ${st.count} turns vs 1.5s target — ${(st.withinTarget * 100).toFixed(0)}% within`}
+                  >
+                    p50 {(st.p50 / 1000).toFixed(1)}s · p95 {(st.p95 / 1000).toFixed(1)}s
+                  </span>
+                );
+              })()}
             </span>
           </div>
           <Transcript lines={transcript} />

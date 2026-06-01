@@ -4,6 +4,7 @@ import {
   retrieveObjectionRebuttal,
   getDiscoveryQuestions,
 } from './RAGService.js';
+import { isDemoMode, demoComplete } from '../lib/demo.js';
 
 const NIM_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NIM_MODEL = process.env.NIM_MODEL || 'meta/llama-3.3-70b-instruct';
@@ -16,6 +17,10 @@ const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
  * Call the NVIDIA NIM-hosted LLM. Optimized for fast voice responses.
  */
 export async function callLLM(system: string, user: string): Promise<string> {
+  // DEMO_MODE: serve canned deterministic responses so a full call runs with
+  // zero external keys (judge-demo stability). Bypasses the network entirely.
+  if (isDemoMode()) return demoComplete(system, user);
+
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
   if (!apiKey) {
     throw new Error(

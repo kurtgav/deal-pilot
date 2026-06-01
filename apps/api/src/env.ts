@@ -31,10 +31,16 @@ const loadedFrom = loadedFiles.length ? loadedFiles.join(', ') : 'none';
 console.log(
   `[env] NVIDIA_NIM_API_KEY present: ${nvidiaKeyPresent ? 'yes' : 'no'}; loaded .env files: ${loadedFrom}`
 );
+if (process.env.DEMO_MODE === 'true') {
+  console.log('[env] DEMO_MODE=true — LLM served by canned responses; no external AI keys required.');
+}
 
 // Fail fast on missing required configuration instead of crashing later at
-// the first DB/auth call with an opaque error.
-const REQUIRED = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'NVIDIA_NIM_API_KEY'];
+// the first DB/auth call with an opaque error. Under DEMO_MODE the LLM is
+// served by canned responses, so the NVIDIA key is not required.
+const demoMode = process.env.DEMO_MODE === 'true';
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
+  ...(demoMode ? [] : ['NVIDIA_NIM_API_KEY'])];
 const missing = REQUIRED.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(

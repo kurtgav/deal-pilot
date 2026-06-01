@@ -12,6 +12,7 @@ import { researchRouter } from './routes/research.js';
 import { knowledgeRouter } from './routes/knowledge.js';
 import { adminRouter } from './routes/admin.js';
 import { loadKnowledge } from './services/RAGService.js';
+import { sweepExpiredTranscripts } from './services/retention.js';
 import { requireAuth } from './middleware/auth.js';
 import { corsOrigins } from './lib/cors.js';
 import { rateLimit } from './lib/rateLimit.js';
@@ -55,6 +56,15 @@ initSocketServer(httpServer);
 
 // Warm the in-memory knowledge cache used by the AI agent for RAG.
 loadKnowledge().catch((e) => console.warn('[RAG] initial load failed:', e?.message ?? e));
+
+// Retention sweep (Golden Rule #4): purge expired transcript PII on boot and
+// hourly thereafter, so prospect PII never persists past its TTL.
+const runSweep = () =>
+  sweepExpiredTranscripts()
+    .then((n) => n > 0 && console.log(`[retention] purged ${n} expired transcript(s)`))
+    .catch((e) => console.warn('[retention] sweep failed:', e?.message ?? e));
+runSweep();
+setInterval(runSweep, 3600_000).unref();
 
 const PORT = process.env.PORT || 3001;
 httpServer.on('error', (err: any) => {

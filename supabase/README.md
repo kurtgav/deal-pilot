@@ -262,3 +262,179 @@ permission checks, super_admin shortcut, and defensive copying.
 | roles.manage            | ✓           |       |         |      |
 | billing.read            | ✓           | ✓     | ✓       |      |
 | billing.manage          | ✓           | ✓     |         |      |
+
+## PII & data retention (Golden Rule #4)
+
+> **Golden Rule #4:** the AI will not store or log prospect PII beyond session
+> scope. No persistent prospect profiles without consent.
+
+### Where prospect PII lives
+
+| Store | PII content | Retention |
+| ----- | ----------- | --------- |
+| `call_sessions.transcript` (JSONB) | **Verbatim** — names/emails/phones spoken aloud | Bounded review TTL, then purged (see below) |
+| `call_sessions.extracted_fields` | Structured business signals (use case, budget) — not raw contact PII | Retained with session |
+| `handoffs.summary` / `crm_json` | The rep-exported deliverable (PRD F5.1/F5.3) | Retained — this is the explicit export |
+| consent log | One-way **SHA-256 IP hash** only, never the raw IP | In-memory audit line |
+| application logs | No raw PII (consent logs the hash; errors never echo transcripts) | — |
+
+### Why TTL purge, not delete-on-export
+
+PRD F5.1 makes the full transcript a handoff deliverable the rep reviews after
+the call, so deleting it the instant a handoff is generated would break the
+review flow. Instead the verbatim transcript is kept for a bounded **review
+window** then auto-purged — satisfying "beyond session scope" while preserving
+the rep's post-call review. The exported business artifacts (`summary`,
+`crm_json`) survive; only the raw PII-bearing transcript is emptied.
+
+### Controls
+
+- **Retention sweep** (`services/retention.ts`): on server boot and hourly, any
+  `ended` session whose `ended_at` is older than `TRANSCRIPT_TTL_HOURS`
+  (default **24h**) has its `transcript` emptied. Pure cutoff math, delegating
+  to `repo.purgeExpiredTranscripts(cutoffIso)`.
+- **Redaction at rest** (opt-in): set `PII_REDACTION=true` and every
+  `saveSession` masks emails/phones (`[redacted-email]` / `[redacted-phone]`)
+  before the transcript is written — verbatim PII never touches Postgres.
+- **Per-session isolation**: sessions/handoffs are owned by `user_id`; RLS
+  policies (`sessions_all`, `handoffs_all`) restrict rows to the owner, and the
+  API double-checks ownership in app code (`denyIfNotOwner`) because the
+  service role bypasses RLS.
+
+### Config
+
+| Env var | Default | Effect |
+| ------- | ------- | ------ |
+| `TRANSCRIPT_TTL_HOURS` | `24` | Hours an ended session's transcript is kept before purge |
+| `PII_REDACTION` | _(off)_ | `true` masks emails/phones in transcripts at write time |
+
+### Tests
+
+```sh
+pnpm --filter @dealpilot/api test   # includes pii.test.ts + retention.test.ts
+```
+
+Covers email/phone masking, per-session scoping (only the passed lines are
+redacted, input is not mutated), TTL config, and that the sweep purges with a
+cutoff exactly `TRANSCRIPT_TTL_HOURS` before now.
+
+## Demo mode (key-less, deterministic)
+
+> **Demo-success bar (PRD):** an end-to-end call completes, ≥6 copilot fields
+> populate, and a valid CRM payload + follow-up email generate — every time.
+
+`DEMO_MODE=true` makes a full call run with **zero external AI keys**, so a
+judge demo can never be broken by a cold/rate-limited/missing key:
+
+- **LLM** — `callLLM()` short-circuits to canned, deterministic responses
+  (`apps/api/src/lib/demo.ts`): stage-aware agent replies, field-extraction
+  JSON, and the handoff summary/email. No network call is made.
+- **STT** — the browser Web Speech API is the default transport (no key); the
+  server-side Deepgram path no-ops without `DEEPGRAM_API_KEY`.
+- **TTS** — `/api/tts` returns 503 without `ELEVENLABS_API_KEY` and the client
+  falls back to the browser `SpeechSynthesis` voice.
+- **env gate** — under `DEMO_MODE` the `NVIDIA_NIM_API_KEY` requirement is
+  dropped, so the API boots with only the Supabase vars set.
+
+```sh
+DEMO_MODE=true pnpm dev:api    # boots with no AI keys; canned LLM responses
+```
+
+The scripted scenario lives in `DEMO_SCRIPT` (`apps/api/src/lib/demo.ts`): six
+prospect turns that populate 8 fields (industry, use case, pain points,
+urgency, budget, technical fit, objection, next step). The smoke test
+`apps/api/src/lib/demo.test.ts` runs that script through the **real** field
+extractor and handoff generator with all AI keys removed, asserting ≥6 fields
+and a valid CRM payload — a regression guard on the demo-success bar.
+
+## Cross-browser voice & latency
+
+### STT transport (Chrome + Safari)
+
+The browser Web Speech API is **Chrome-only**, but the PRD requires Chrome AND
+Safari. `pickSttTransport()` (`packages/shared/src/voice/transport.ts`) chooses
+at runtime:
+
+- **Chrome** → `browser` (Web Speech API, lowest latency, no server key).
+- **Safari / Firefox** → `deepgram` — the mic is captured with `MediaRecorder`
+  and streamed to the server's Deepgram pipeline, which loops transcripts back
+  over the socket. Requires `DEEPGRAM_API_KEY` on the API.
+
+Override with `VITE_STT_TRANSPORT=browser|deepgram` (default `auto`). The picker
+is pure and unit-tested (`transport.test.ts`).
+
+### Latency vs the 1.5s NFR
+
+The PRD requires the AI voice response to begin within **1.5s** of the
+prospect's utterance end. The server emits `latency:update` per turn; the client
+accumulates samples and reports the distribution:
+
+- Live in the call header: `p50 … · p95 …` (turns amber if p95 > 1.5s).
+- On **End Call**, a console line: `[latency] n=… p50=…ms p95=…ms within 1.5s
+  target: …%`.
+
+`latencyStats()` (`packages/shared/src/voice/latency.ts`, nearest-rank
+percentiles, unit-tested) is the single source of truth for these numbers.
+
+### Deferred: streamed TTS
+
+Today `/api/tts` returns the full MP3 before playback begins, which adds the
+synthesis time to the first-audio latency. Streaming the audio (chunked
+transfer + `MediaSource`) would cut time-to-first-audio meaningfully. It's
+**deferred**: it needs a real-device latency baseline to tune against and a
+`MediaSource` fallback path for Safari, so it's scoped as a follow-up rather
+than rushed. The measurement above is the prerequisite that makes that work
+verifiable.
+
+## Eval scoreboard & embedding providers
+
+### The scoreboard
+
+`pnpm --filter @dealpilot/api eval` is the AI-quality scoreboard:
+
+- **Grounding / hallucination** (offline, deterministic) — for each labeled
+  product question, does the grounding gate answer from the KB or escalate?
+  Out-of-KB questions answered instead of escalated are hallucinations.
+- **Field extraction** precision/recall — needs a real LLM key, so it's
+  **skipped** when `NVIDIA_NIM_API_KEY` is unset.
+
+### Nightly CI
+
+`.github/workflows/eval.yml` runs the eval nightly (07:00 UTC) and on manual
+dispatch, with `NVIDIA_NIM_API_KEY` from repo secrets — so extraction
+precision/recall is tracked over time instead of skipped in the per-PR gate.
+Set the secret in **Settings → Secrets → Actions**.
+
+### Embedding providers (behind a sync seam)
+
+Grounding similarity runs through `EmbeddingProvider` (`services/embeddings.ts`):
+
+- `tfidf` (default) — offline, deterministic, **synchronous**. Zero voice-turn
+  latency.
+- `hosted` — NVIDIA NIM semantic embeddings (`NIM_EMBED_MODEL`). To keep
+  `embed()` synchronous, the provider `prewarm()`s the KB docs (and, in eval,
+  the queries) into a cache; `embed()` serves from cache and falls back to
+  TF-IDF on any miss/failure, so a voice turn never blocks on the network.
+
+Select with `EMBEDDING_PROVIDER=tfidf|hosted`.
+
+### A/B before you swap — and why the threshold matters
+
+```sh
+EVAL_COMPARE=1 pnpm --filter @dealpilot/api eval
+```
+
+prints in-KB recall and hallucination rate for **both** providers at the
+current grounding threshold (`0.11`). A live run surfaced the key finding:
+
+| provider | in-KB recall | hallucination |
+| -------- | -----------: | ------------: |
+| tfidf    | 75%          | **0%**        |
+| hosted   | 100%         | **100%**      |
+
+Dense embeddings sit in a narrow cosine band where *every* query — in-KB and
+out-of-KB alike — clears a threshold tuned for sparse TF-IDF. So a naive swap
+to `hosted` lifts recall to 100% but makes the agent **fabricate on every
+out-of-KB question** — a direct Golden Rule #1 violation. The hosted provider
+needs its **own re-tuned threshold** before it can ship. This A/B gate is
+exactly what catches that before it reaches a call.
